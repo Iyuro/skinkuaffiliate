@@ -37,7 +37,18 @@ async function showSubmissions(challengeId){
   const sup = await fetch('/api/router?op=list-submissions&id='+encodeURIComponent(challengeId),{headers:{'Authorization':localStorage.getItem('aa_auth')?('Bearer '+localStorage.getItem('aa_auth')):''}});
   const sjs = await sup.json();
   const subs = sjs.ok? (sjs.submissions||[]) : [];
-  const html = `<div style="margin-bottom:8px"><strong>${j.challenge.title}</strong><div style="color:var(--text3)">${j.challenge.description||''}</div></div>` + (subs.length? subs.map(s=>`<div style="padding:8px;border-top:1px solid var(--border)"><div><b>@${s.username}</b> ${s.phone?'/ '+s.phone:''}</div><div style="font-size:13px;color:var(--text3)">${s.tiktok_link||''}</div><div style="margin-top:6px"><button class="btn btn-primary btn-sm" onclick="pickWinner('${j.challenge.id}','${s.id}')">Pilih Pemenang</button></div></div>`).join('') : '<div class="empty-state"><p>Belum ada submission</p></div>';
+  const baseHtml = `<div style="margin-bottom:8px"><strong>${j.challenge.title}</strong><div style="color:var(--text3)">${j.challenge.description||''}</div></div>`;
+  const submissionsHtml = subs.length
+    ? subs.map(s => {
+        const phoneText = s.phone ? '/ ' + s.phone : '';
+        return `<div style="padding:8px;border-top:1px solid var(--border)">` +
+          `<div><b>@${s.username}</b> ${phoneText}</div>` +
+          `<div style="font-size:13px;color:var(--text3)">${s.tiktok_link||''}</div>` +
+          `<div style="margin-top:6px"><button class="btn btn-primary btn-sm" onclick="pickWinner('${j.challenge.id}','${s.id}')">Pilih Pemenang</button></div>` +
+          `</div>`;
+      }).join('')
+    : '<div class="empty-state"><p>Belum ada submission</p></div>';
+  const html = baseHtml + submissionsHtml;
   // show modal-like prompt
   const w = window.open('about:blank','submissions','width=600,height=600');
   w.document.body.innerHTML = `<div style="font-family:sans-serif;padding:12px">${html}</div>`;
