@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ikut Challenge</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>body{padding:20px;max-width:720px;margin:24px auto}</style>
+</head>
+<body>
+  <h2 id="title">Ikut Challenge</h2>
+  <p id="desc">Loading…</p>
+  <form id="challengeForm">
+    <input type="hidden" id="challengeId">
+    <div class="form-row"><label>Username TikTok</label><input id="username" required placeholder="username tanpa @"></div>
+    <div class="form-row"><label>Tautan TikTok</label><input id="tiktok_link" required placeholder="https://www.tiktok.com/@..."></div>
+    <div class="form-row"><label>Nomor WA</label><input id="phone" placeholder="0812... (opsional)"></div>
+    <div class="form-row"><label>Email</label><input id="email" placeholder="email (opsional)"></div>
+    <div class="form-row"><label>Keterangan</label><textarea id="extra" placeholder="Kira-kira kenapa mau ikut?"></textarea></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-primary" type="submit">Ikut Challenge</button><a id="gformLink" style="align-self:center;color:var(--accent)" href="#"></a></div>
+  </form>
+  <div id="msg" style="margin-top:12px;color:var(--text3)"></div>
+
+  <script>
+    async function load(){
+      const qp = new URLSearchParams(window.location.search);
+      const id = qp.get('id');
+      if(!id){ document.getElementById('msg').textContent='ID challenge tidak ditemukan.'; return; }
+      document.getElementById('challengeId').value=id;
+      const r = await fetch('/api/router?op=get-challenge&id='+encodeURIComponent(id));
+      const j = await r.json();
+      if(!j.ok){ document.getElementById('msg').textContent='Challenge tidak ditemukan.'; return; }
+      const c = j.challenge;
+      document.getElementById('title').textContent = c.title;
+      document.getElementById('desc').textContent = c.description || '';
+      if(c.google_form_url){ document.getElementById('gformLink').textContent='Isi via Google Form →'; document.getElementById('gformLink').href=c.google_form_url; }
+    }
+    document.getElementById('challengeForm').addEventListener('submit', async function(e){
+      e.preventDefault();
+      const payload = { challenge_id: document.getElementById('challengeId').value, username: document.getElementById('username').value, tiktok_link: document.getElementById('tiktok_link').value, phone: document.getElementById('phone').value, email: document.getElementById('email').value, extra: document.getElementById('extra').value };
+      const r = await fetch('/api/router?op=submit-challenge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const j = await r.json();
+      if(j.ok){
+        document.getElementById('msg').textContent='Terima kasih! Data telah diterima.';
+        if(j.redirect){ window.location.href = j.redirect; }
+      }else{
+        document.getElementById('msg').textContent='Gagal submit: '+(j.error||'');
+      }
+    });
+    load();
+  </script>
+</body>
+</html>

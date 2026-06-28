@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Affiliate Analyzer — SKINKU</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+</head>
+<body data-theme="dark">
+
+<!-- ===== LOGIN ===== -->
+<div id="loginScreen">
+  <div class="login-bg"></div>
+  <div class="login-card">
+    <div class="login-logo"><span class="app-icon lg"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span></div>
+    <h2>Affiliate Analyzer</h2>
+    <div class="subtitle">SKINKU — TikTok Seller Dashboard</div>
+
+    <!-- Step 1 -->
+    <div class="login-step active" id="step1">
+      <div class="tg-badge"><span class="app-icon sm" style="margin-right:4px"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M8 12h8"/><path d="M12 8v8"/></svg></span> Dilindungi Telegram OTP</div>
+      <div class="login-desc">Klik tombol di bawah untuk menerima<br>kode OTP di Telegram lo.</div>
+      <button class="login-btn" onclick="requestOTP()" id="otpRequestBtn">
+        <span class="btn-icon"><span class="app-icon sm"><svg viewBox="0 0 24 24"><path d="m3 12 18-9-4 18-4-6-10-3Z"/></svg></span></span> Kirim OTP ke Telegram
+      </button>
+      <div class="login-err" id="step1Err"></div>
+      <div class="login-hint">OTP dikirim ke akun Telegram yang sudah terdaftar.<br>Berlaku 5 menit.</div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="login-step" id="step2">
+      <div class="login-desc">Masukkan 6 digit OTP yang dikirim ke Telegram lo</div>
+      <div class="otp-inputs">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" onInput="otpInput(this,0)" onKeydown="otpKey(event,0)">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" onInput="otpInput(this,1)" onKeydown="otpKey(event,1)">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" onInput="otpInput(this,2)" onKeydown="otpKey(event,2)">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" onInput="otpInput(this,3)" onKeydown="otpKey(event,3)">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" onInput="otpInput(this,4)" onKeydown="otpKey(event,4)">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" onInput="otpInput(this,5)" onKeydown="otpKey(event,5)">
+      </div>
+      <!-- CHALLENGES -->
+      <div class="view" id="view-challenges" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h2>Challenges</h2>
+          <button class="btn btn-primary btn-sm" onclick="showCreateChallenge()">Buat Challenge</button>
+        </div>
+        <div id="challengesList"></div>
+        <div id="challengesCreate" style="display:none;margin-top:12px">
+          <div class="form-row"><label>Judul</label><input id="ch-title"></div>
+          <div class="form-row"><label>Deskripsi</label><textarea id="ch-desc"></textarea></div>
+          <div class="form-row"><label>Reward</label><input id="ch-reward"></div>
+          <div class="form-row"><label>Google Form URL (opsional)</label><input id="ch-gform" placeholder="https://docs.google.com/forms/.."></div>
+          <div class="form-row"><label>Webhook Notify URL (opsional)</label><input id="ch-webhook" placeholder="https://hooks.example.com/.."></div>
+          <div style="display:flex;gap:8px"><button class="btn btn-primary" onclick="createChallenge()">Simpan</button><button class="btn" onclick="hideCreateChallenge()">Batal</button></div>
+        </div>
+      </div>
+      <button class="login-btn" onclick="verifyOTP()" id="verifyBtn">
+        <span class="btn-icon"><span class="app-icon sm"><svg viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></svg></span></span> Verifikasi
+      </button>
+      <div class="login-err" id="step2Err"></div>
+      <div class="resend-wrap">
+        <span id="resendTimer"></span>
+        <button class="resend-btn" id="resendBtn" onclick="backToStep1()" disabled>Kirim ulang OTP</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Success -->
+    <div class="login-step" id="step3">
+      <span class="success-check"><span class="app-icon lg"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path d="m8 12 3 3 5-6"/></svg></span></span>
+      <div style="font-size:16px;font-weight:600;margin-bottom:6px">Login Berhasil!</div>
+      <div class="login-desc">Membuka dashboard...</div>
+    </div>
+  </div>
+</div>
+
+<div id="publicRankShell" class="public-rank-shell" style="display:none">
+  <div class="public-rank-card">
+    <div class="public-rank-head">
+      <div>
+        <h1><span class="app-icon md" style="margin-right:6px"><svg viewBox="0 0 24 24"><path d="m4 17 2-8 5 4 5-4 2 8z"/><path d="M6 17h12"/></svg></span>Leaderboard Publik</h1>
+        <p>Ranking terbaru kreator, jumlah video, dan GMV tanpa login.</p>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="copyRankShareLink()">Salin Link Rank</button>
+    </div>
+    <div id="publicPodium" class="podium-board podium-style-1"></div>
+    <div id="publicRankBody" class="rank-list"></div>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div class="layout" id="appLayout" style="display:none">
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-inner">
+        <div class="logo-icon"><span class="app-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span></div>
+        <div><h1>Affiliate Analyzer</h1><p>SKINKU TikTok Seller</p></div>
+      </div>
+    </div>
+
+    <div class="nav-section">Main</div>
+    <button class="nav-item active" id="nav-upload" onclick="switchView('upload')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      Upload Data
+    </button>
+    <button class="nav-item" id="nav-dashboard" onclick="switchView('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+      <span class="nav-badge alert" id="dashboardAlertBadge" style="display:none">0</span>
+    </button>
+    <button class="nav-item" id="nav-kreator" onclick="switchView('kreator')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      Kreator List
+      <span class="nav-badge" id="kreatorBadge" style="display:none">0</span>
+    </button>
+    <button class="nav-item" id="nav-exclusive" onclick="switchView('exclusive')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Affiliate Exclusive
+      <span class="nav-badge gold" id="exclusiveBadge">0</span>
+    </button>
+
+    <div class="nav-section">Tools</div>
+    <button class="nav-item" id="nav-ai" onclick="switchView('ai')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      AI Analyst
+    </button>
+    <button class="nav-item" id="nav-challenges" onclick="switchView('challenges')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16 5.5 20l2-7L2 9h7z"/></svg>
+      Challenges
+    </button>
+    <button class="nav-item" onclick="exportCSV()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      Export CSV
+    </button>
+
+    <div class="sidebar-footer">
+      <div class="api-status-row"><span class="status-dot" id="apiDot"></span><span id="apiStatus">OpenAI: Belum diset</span></div>
+      <button class="nav-item" style="margin-top:6px;padding-left:0" id="nav-settings" onclick="switchView('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M2 12h2M20 12h2M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41"/></svg>
+        Settings
+      </button>
+      <button class="nav-item" style="padding-left:0;color:var(--red);margin-top:2px" onclick="logout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbarTitle">Upload Data</div>
+      <span style="font-size:12px;color:var(--text3)" id="dataInfo">Belum ada data</span>
+      <button class="theme-toggle" onclick="toggleTheme()"><span class="app-icon sm"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 3v3"/><path d="M12 18v3"/><path d="M3 12h3"/><path d="M18 12h3"/></svg></span><span id="themeLabel">Tema</span></button>
+      <button class="btn btn-ghost btn-sm" onclick="clearData()"><span class="app-icon sm"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7"/><path d="M21 3v6h-6"/><path d="M21 12a9 9 0 0 1-15 6.7"/><path d="M3 21v-6h6"/></svg></span> Reset</button>
+    </div>
+    <div class="content">
+
+      <!-- UPLOAD -->
+      <div class="view active" id="view-upload">
+        <div class="upload-zone" id="dropzone">
+          <input type="file" id="fileInput" accept=".xlsx,.xls" multiple>
+          <span class="upload-icon"><span class="app-icon lg"><svg viewBox="0 0 24 24"><path d="M12 3v10"/><path d="m7 8 5-5 5 5"/><path d="M5 14v4h14v-4"/></svg></span></span>
+          <div style="font-size:15px;font-weight:600;margin-bottom:6px">Drop file Excel di sini</div>
+          <div style="font-size:13px;color:var(--text3)">Sample Analysis atau Transaction Analysis — bisa multi-file sekaligus</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px">.xlsx / .xls dari TikTok Seller Affiliate</div>
+        </div>
+        <div id="uploadStatus" class="upload-status-bar" style="display:none"></div>
+        <div id="fileChips" class="file-chips"></div>
+        <div id="uploadSummary" style="display:none">
+          <div class="kpi-grid" id="uploadKPI"></div>
+          <div style="text-align:center;margin-top:8px"><button class="btn btn-primary" onclick="switchView('dashboard')">Lihat Dashboard →</button></div>
+        </div>
+        <div id="uploadEmpty" class="empty-state"><span class="icon"><span class="app-icon lg"><svg viewBox="0 0 24 24"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></span></span><p>Belum ada file yang diupload</p></div>
+      </div>
+
+      <!-- DASHBOARD -->
+      <div class="view" id="view-dashboard">
+        <div id="dashEmpty" class="empty-state"><span class="icon"><span class="app-icon lg"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span></span><p>Upload data dulu</p><button class="btn btn-primary" onclick="switchView('upload')" style="margin-top:12px">Upload Sekarang</button></div>
+        <div id="dashContent" style="display:none">
+          <div class="kpi-grid" id="kpiGrid"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
+            <div class="tbl-wrap">
+              <div class="tbl-header"><span class="app-icon sm" style="margin-right:6px"><svg viewBox="0 0 24 24"><path d="m4 17 2-8 5 4 5-4 2 8z"/><path d="M6 17h12"/></svg></span> Top Perform <button class="btn btn-ghost btn-sm" onclick="showMorePerform()">Lihat semua →</button></div>
+              <table><tbody id="topPerformBody"></tbody></table>
+              <div class="pager" id="performPager" style="display:none"><button onclick="changePage('perform',-1)">‹</button><span id="performPageInfo"></span><button onclick="changePage('perform',1)">›</button></div>
+            </div>
+            <div class="tbl-wrap">
+              <div class="tbl-header"><span class="app-icon sm" style="margin-right:6px"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 13c1-2 3-3 4-3s3 1 4 3"/></svg></span> Ghost Kreator <button class="btn btn-ghost btn-sm" onclick="showMoreGhost()">Lihat semua →</button></div>
+              <table><tbody id="ghostBody"></tbody></table>
+              <div class="pager" id="ghostPager" style="display:none"><button onclick="changePage('ghost',-1)">‹</button><span id="ghostPageInfo"></span><button onclick="changePage('ghost',1)">›</button></div>
+            </div>
+          </div>
+          <div class="tbl-wrap">
+            <div class="tbl-header"><span class="app-icon sm" style="margin-right:6px"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></span> Rekomendasi Kirim Sampel <button class="btn btn-ghost btn-sm" onclick="showMorePotential()">Lihat semua →</button></div>
+            <table><tbody id="rekomenBody"></tbody></table>
+            <div class="pager" id="rekomenPager" style="display:none"><button onclick="changePage('rekomen',-1)">‹</button><span id="rekomenPageInfo"></span><button onclick="changePage('rekomen',1)">›</button></div>
+          </div>
+
+          <div class="tbl-wrap rank-card">
+            <div class="tbl-header"><span class="app-icon sm" style="margin-right:6px"><svg viewBox="0 0 24 24"><path d="m4 17 2-8 5 4 5-4 2 8z"/><path d="M6 17h12"/></svg></span> Rankboard & Podium</div>
+            <div class="rank-settings">
+              <div id="podiumControls" class="rank-style-buttons"></div>
+              <div class="rank-actions">
+                <button class="btn btn-primary btn-sm" onclick="switchView('rank')">Lihat Halaman Rank</button>
+                <button class="btn btn-ghost btn-sm" onclick="copyRankShareLink()">Share Link Rank</button>
+              </div>
+            </div>
+            <div id="podiumPreview" class="podium-preview podium-style-1"></div>
+          </div>
+
+          <!-- ============ GRAFIK ============ -->
+          <div class="chart-section-title"><span class="app-icon sm"><svg viewBox="0 0 24 24"><path d="M5 19V10"/><path d="M12 19V5"/><path d="M19 19v-7"/></svg></span> Grafik Performa</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
+            <div class="tbl-wrap chart-card">
+              <div class="tbl-header"><span class="app-icon sm" style="margin-right:6px"><svg viewBox="0 0 24 24"><path d="M5 19V10"/><path d="M12 19V5"/><path d="M19 19v-7"/></svg></span> Top 10 GMV per Kreator</div>
+              <div class="chart-box"><canvas id="chartGmvPerCreator"></canvas></div>
+            </div>
+            <div class="tbl-wrap chart-card">
+              <div class="tbl-header"><span class="app-icon sm" style="margin-right:6px"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></span> Sampel vs Video per Kreator</div>
+              <div class="chart-box"><canvas id="chartSampleVsVideo"></canvas></div>
+            </div>
+          </div>
+          <div class="tbl-wrap chart-card">
+            <div class="tbl-header"><span class="app-icon sm" style="margin-right:6px"><svg viewBox="0 0 24 24"><path d="M5 19V10"/><path d="M12 19V5"/><path d="M19 19v-7"/></svg></span> Trend per File Upload — GMV, Video, Sampel Diminta</div>
+            <div id="chartTrendEmpty" style="display:none;padding:20px;text-align:center;color:var(--text3);font-size:13px">Upload data dulu untuk melihat grafik. Tambah file lain supaya perbandingan trend lebih jelas.</div>
+            <div class="chart-box chart-box-wide"><canvas id="chartTrend"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-rank">
+        <div class="rank-page">
+          <div class="rank-page-head">
+            <div>
+              <h2 id="rankPageTitle">Leaderboard</h2>
+              <p class="rank-desc">Share link ini ke tim agar semua lihat prestasi top kreator.</p>
+            </div>
+            <div class="rank-actions">
+              <button class="btn btn-ghost btn-sm" onclick="switchView('dashboard')">‹ Kembali</button>
+              <button class="btn btn-primary btn-sm" onclick="copyRankShareLink()">Salin Link Rank</button>
+            </div>
+          </div>
+          <div id="podiumBoard" class="podium-board podium-style-1"></div>
+          <div id="rankList" class="rank-list"></div>
+        </div>
+      </div>
+
+      <!-- KREATOR LIST -->
+      <div class="view" id="view-kreator">
+        <div id="kreatorEmpty" class="empty-state"><span class="icon"><span class="app-icon lg"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span></span><p>Upload data dulu</p><button class="btn btn-primary" onclick="switchView('upload')" style="margin-top:12px">Upload Sekarang</button></div>
+        <div id="kreatorContent" style="display:none">
+          <div class="tabs">
+            <button class="tab-btn active" data-tab="all">Semua</button>
+            <button class="tab-btn" data-tab="perform"><span class="app-icon sm" style="margin-right:4px"><svg viewBox="0 0 24 24"><path d="m4 17 2-8 5 4 5-4 2 8z"/><path d="M6 17h12"/></svg></span> Perform</button>
+            <button class="tab-btn" data-tab="boncos"><span class="app-icon sm" style="margin-right:4px"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></span> Boncos</button>
+            <button class="tab-btn" data-tab="potential"><span class="app-icon sm" style="margin-right:4px"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></span> Potensi</button>
+            <button class="tab-btn" data-tab="pending"><span class="app-icon sm" style="margin-right:4px"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span> Blm Post</button>
+            <button class="tab-btn" data-tab="organic"><span class="app-icon sm" style="margin-right:4px"><svg viewBox="0 0 24 24"><path d="M12 3c4 3 7 6 7 10a7 7 0 0 1-14 0c0-4 3-7 7-10Z"/></svg></span> Organic</button>
+          </div>
+          <div class="table-toolbar">
+            <input type="text" id="searchInput" placeholder="Cari username..." oninput="renderKreatorTable()">
+            <select id="filterSelect" onchange="renderKreatorTable()">
+              <option value="all">Semua</option>
+              <option value="favorites">Favorit</option>
+            </select>
+            <select id="sortSelect" onchange="renderKreatorTable()">
+              <option value="gmv_desc">GMV Tertinggi</option>
+              <option value="gmv_asc">GMV Terendah</option>
+              <option value="roi_desc">ROI Tertinggi</option>
+              <option value="video_desc">Video Terbanyak</option>
+              <option value="sample_desc">Sampel Terbanyak</option>
+              <option value="conv_desc">Konversi Terbaik</option>
+            </select>
+            <span id="kreatorCount" style="font-size:12px;color:var(--text3);margin-left:auto"></span>
+          </div>
+          <div class="tbl-wrap" style="overflow-x:auto">
+            <table>
+              <thead><tr><th>Kreator</th><th>Status</th><th>Diminta</th><th>Terkirim</th><th>Video</th><th>LIVE</th><th>Konversi</th><th>GMV</th><th>ROI 45h</th><th>Orders</th><th>Saran Sistem</th></tr></thead>
+              <tbody id="kreatorBody"></tbody>
+            </table>
+          </div>
+          <div id="kreatorEmpty2" class="empty-state" style="display:none;padding:28px"><p>Tidak ada kreator yang cocok</p></div>
+          <div class="pager"><button onclick="changePage('kreator',-1)">‹ Prev</button><span id="kreatorPageInfo"></span><button onclick="changePage('kreator',1)">Next ›</button></div>
+        </div>
+      </div>
+
+      <!-- EXCLUSIVE -->
+      <div class="view" id="view-exclusive">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div><h2 style="font-size:17px;font-weight:700;display:flex;align-items:center;gap:8px"><span class="app-icon sm"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span> Affiliate Exclusive</h2><p style="font-size:12px;color:var(--text3);margin-top:2px">Kreator VIP & kontrak langsung — tersimpan permanen</p></div>
+          <button class="btn btn-gold" onclick="toggleAddForm()">+ Tambah Kreator</button>
+        </div>
+        <div class="excl-card" id="addForm" style="display:none">
+          <div class="excl-header"><h3><span class="app-icon sm"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M3 12h18"/></svg></span> Tambah / Edit Kreator Exclusive</h3><button class="btn btn-ghost btn-sm" onclick="toggleAddForm()"><span class="app-icon sm"><svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg></span></button></div>
+          <div class="form-grid">
+            <div class="form-group"><label>Username TikTok *</label><input type="text" id="ef-username" placeholder="@username"></div>
+            <div class="form-group"><label>Nama Lengkap</label><input type="text" id="ef-nama" placeholder="Nama kreator"></div>
+            <div class="form-group"><label>Tipe *</label><select id="ef-tipe"><option value="vip">VIP Creator</option><option value="contract">Kontrak Langsung</option><option value="both">VIP + Kontrak</option></select></div>
+            <div class="form-group"><label>Rate Komisi (%)</label><input type="number" id="ef-komisi" placeholder="e.g. 15" min="0" max="100"></div>
+            <div class="form-group"><label>Platform Utama</label><select id="ef-platform"><option value="tiktok">TikTok</option><option value="instagram">Instagram</option><option value="youtube">YouTube</option><option value="multi">Multi-platform</option></select></div>
+            <div class="form-group"><label>Followers</label><input type="text" id="ef-followers" placeholder="e.g. 50rb, 1.2jt"></div>
+            <div class="form-group"><label>Tanggal Deal</label><input type="date" id="ef-tanggal"></div>
+            <div class="form-group"><label>Tanggal Berakhir</label><input type="date" id="ef-expire"></div>
+            <div class="form-group" style="grid-column:1/-1"><label>Produk yang di-handle</label><input type="text" id="ef-produk-input" placeholder="Ketik nama produk → Enter" onkeydown="addProdukTag(event)"><div class="tag-list" id="ef-produk-tags"></div></div>
+            <div class="form-group" style="grid-column:1/-1"><label>Catatan</label><textarea id="ef-notes" placeholder="Target GMV, ketentuan khusus, dll"></textarea></div>
+            <input type="hidden" id="ef-edit-id">
+          </div>
+          <div class="form-actions"><button class="btn btn-primary" onclick="saveExclusive()"><span class="app-icon sm"><svg viewBox="0 0 24 24"><path d="M12 3v10"/><path d="m7 8 5-5 5 5"/><path d="M5 14v4h14v-4"/></svg></span> Simpan</button><button class="btn btn-ghost" onclick="clearForm()">Reset</button></div>
+        </div>
+        <div id="exclusiveList"></div>
+        <div id="exclusiveEmpty" class="empty-state" style="display:none"><span class="icon"><span class="app-icon lg"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span></span><p>Belum ada kreator exclusive</p><small>Klik "+ Tambah Kreator" untuk mulai</small></div>
+      </div>
+
+      <!-- AI -->
+      <div class="view" id="view-ai">
+        <div class="ai-panel">
+          <div class="ai-topbar">
+            <div style="display:flex;gap:6px">
+              <button class="mode-btn active" id="mode-analyst" onclick="setAIMode('analyst')"><span class="app-icon sm" style="margin-right:4px"><svg viewBox="0 0 24 24"><path d="M5 19V10"/><path d="M12 19V5"/><path d="M19 19v-7"/></svg></span> Analisis Data</button>
+              <button class="mode-btn" id="mode-dev" onclick="setAIMode('dev')"><span class="app-icon sm" style="margin-right:4px"><svg viewBox="0 0 24 24"><path d="m5 5 14 14"/><path d="M8 5h9v9"/></svg></span> Update Website</button>
+            </div>
+            <p id="modeDesc" style="font-size:11px;color:var(--text3)">Tanya performa kreator affiliate lo</p>
+          </div>
+          <div class="chat-messages" id="chatMessages">
+            <div class="chat-msg">
+              <div class="chat-avatar av-ai">AI</div>
+              <div class="chat-bubble b-ai">Halo! Gua AI Analyst buat dashboard SKINKU lo.<br><br>Ada 2 mode:<br>• <b>Analisis Data</b> — tanya performa kreator, siapa boncos, siapa worth dikasih sampel lagi<br>• <b>Update Website</b> — minta update fitur/tampilan, download kode hasilnya<br><br><span style="color:var(--text3);font-size:12px">Set OpenAI API Key di Settings dulu.</span></div>
+            </div>
+          </div>
+          <div class="chat-input-area">
+            <div class="chat-suggestions" id="chatSuggestions"></div>
+            <div class="chat-input-wrap">
+              <textarea class="chat-input" id="chatInput" placeholder="Tanya atau minta update website..." rows="1" onkeydown="handleChatKey(event)" oninput="autoResize(this)"></textarea>
+              <button class="chat-send" id="chatSend" onclick="sendChat()">Kirim ↑</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="view" id="view-settings">
+        <div class="settings-section">
+          <h3><span class="app-icon sm" style="margin-right:6px"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></span> OpenAI API Key</h3>
+          <div class="form-row"><label>API Key</label><input type="password" id="apiKeyInput" placeholder="sk-..." oninput="saveApiKey()"></div>
+          <div class="form-hint">Disimpan di browser lo (localStorage). Tidak pernah ke server manapun kecuali OpenAI langsung.</div>
+          <div class="form-row"><label>Model</label>
+            <select id="modelSelect" onchange="saveSettings()" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);padding:8px 12px;font-size:13px;color:var(--text);outline:none">
+              <option value="gpt-4o-mini">GPT-4o Mini (Murah, cukup akurat)</option>
+              <option value="gpt-4o">GPT-4o (Lebih pintar)</option>
+              <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Paling murah)</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3><span class="app-icon sm"><svg viewBox="0 0 24 24"><path d="M5 19V10"/><path d="M12 19V5"/><path d="M19 19v-7"/></svg></span> Parameter Analisis</h3>
+          <div class="form-row"><label>ROI Minimum Perform</label><input type="range" id="roiPerform" min="1" max="10" step="0.5" value="3" oninput="updateRange('roiPerform','roiPerformLbl','x')"><span id="roiPerformLbl" style="min-width:38px;color:var(--accent3);font-weight:700">3x</span></div>
+          <div class="form-row"><label>GMV Min. Organic (Potensi)</label><input type="range" id="gmvOrganic" min="50000" max="1000000" step="50000" value="100000" oninput="updateRange('gmvOrganic','gmvOrganicLbl','rp')"><span id="gmvOrganicLbl" style="min-width:60px;color:var(--accent3);font-weight:700">100rb</span></div>
+        </div>
+        <div class="settings-section">
+          <h3><span class="app-icon sm" style="margin-right:6px"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></span> Cara Baca Data</h3>
+          <div style="font-size:13px;color:var(--text2);line-height:1.9">
+            <p><b style="color:var(--text)">Sampel Diminta = 0</b> → Kreator belum pernah request sampel</p>
+            <p><b style="color:var(--text)">Sampel Terkirim = 0</b> → Lo belum kirim sampel ke kreator ini</p>
+            <p><b style="color:var(--text)">Video = 0 (tapi dapat sampel)</b> → Ghost — belum posting sama sekali</p>
+            <p><b style="color:var(--text)">Konversi</b> = Video ÷ Sampel Terkirim. Ideal ≥ 100%</p>
+            <p><b style="color:var(--text)">ROI 45h</b> = GMV ÷ Nilai Sampel (dihitung TikTok). Bagus ≥ 3x</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/state.js"></script>
+<script src="js/tiktok.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/api-client.js"></script>
+<script src="js/notifications.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/upload.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/creator-table.js"></script>
+<script src="js/exclusive.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/ai-chat.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/challenges.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
