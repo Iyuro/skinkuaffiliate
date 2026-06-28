@@ -21,6 +21,8 @@ module.exports = async function handler(req, res) {
       case 'submit-challenge': return require('../server/impl/submit-challenge')(req, res);
       case 'list-submissions': return require('../server/impl/list-submissions')(req, res);
       case 'pick-winner': return require('../server/impl/pick-winner')(req, res);
+      case 'send-otp': return require('../server/impl/send-otp')(req, res);
+      case 'verify-otp': return require('../server/impl/verify-otp')(req, res);
       case 'broadcast-reminders': return require('../server/impl/broadcast-reminders')(req, res);
       case 'telegram-webhook': return require('../server/impl/telegram-webhook')(req, res);
       default:
