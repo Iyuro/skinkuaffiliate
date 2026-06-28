@@ -38,7 +38,7 @@ module.exports = async function handler(req, res) {
   const { data: subscribers, error } = await supabase.from('telegram_subscribers').select('chat_id, username').eq('subscribed', true);
   if (error) {
     console.error('send-otp supabase error', error);
-    return res.status(500).json({ ok: false, error: 'Gagal ambil subscriber Telegram' });
+    return res.status(500).json({ ok: false, error: 'Gagal ambil subscriber Telegram. Pastikan tabel telegram_subscribers sudah ada dan Supabase service key benar.' });
   }
   if (!subscribers || !subscribers.length) {
     return res.status(400).json({ ok: false, error: 'Belum ada subscriber Telegram terdaftar. Kirim /start dulu ke bot.' });
