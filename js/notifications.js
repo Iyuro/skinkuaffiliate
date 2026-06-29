@@ -2,6 +2,28 @@
 // 1. Badge alert merah di nav "Dashboard" — jumlah ghost kreator + kontrak VIP/Kontrak
 //    yang mau/sudah expire (≤7 hari). Sinkron secara visual dengan apa yang bot Telegram kasih tau.
 // 2. Toast notification kecil di pojok — feedback yang lebih hidup daripada alert() browser.
+// 3. Theme toggle (dark/light pastel) — preferensi tampilan disimpan di localStorage,
+//    ini aman tetap per-device karena bukan data bisnis (beda dengan settings.roiPerform dkk
+//    yang idealnya pindah ke Supabase nanti).
+
+function initTheme(){
+  const saved=localStorage.getItem('aa_theme')||'dark';
+  applyTheme(saved);
+}
+
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme',theme);
+  const btn=document.getElementById('themeToggle');
+  if(btn)btn.textContent=theme==='light'?'☀️':'🌙';
+}
+
+function toggleTheme(){
+  const current=document.documentElement.getAttribute('data-theme')||'dark';
+  const next=current==='light'?'dark':'light';
+  localStorage.setItem('aa_theme',next);
+  applyTheme(next);
+  toast(next==='light'?'Tampilan terang aktif ☀️':'Tampilan gelap aktif 🌙','info');
+}
 
 function updateAlertBadge(){
   const badge=document.getElementById('dashboardAlertBadge');

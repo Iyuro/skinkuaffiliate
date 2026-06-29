@@ -1,5 +1,6 @@
 // ============ APP INIT ============
 // File ini di-load terakhir — pasang semua event listener DOM lalu jalankan checkAuth().
+applyTheme(document.documentElement.getAttribute('data-theme')||'dark'); // sync ikon tombol toggle (sudah diset di <head>, ini cuma update ikonnya)
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{currentTab=btn.dataset.tab;pages.kreator=1;document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b===btn));renderKreatorTable();});
 });

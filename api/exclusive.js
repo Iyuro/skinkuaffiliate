@@ -29,18 +29,23 @@ module.exports = async function handler(req, res) {
   if (req.method === 'POST') {
     const b = req.body || {};
     if (!b.username) return res.status(400).json({ error: 'username wajib diisi' });
+    if (String(b.username).length > 100) return res.status(400).json({ error: 'Username terlalu panjang (maks 100 karakter)' });
+
+    const validTipe = ['vip', 'contract', 'both'];
+    const validPlatform = ['tiktok', 'instagram', 'youtube', 'multi'];
+    const tipe = validTipe.includes(b.tipe) ? b.tipe : 'vip';
+    const platform = validPlatform.includes(b.platform) ? b.platform : 'tiktok';
+    const produk = Array.isArray(b.produk) ? b.produk.slice(0, 50).map(p => String(p).slice(0, 100)) : [];
 
     const payload = {
-      username: String(b.username).replace('@', '').trim(),
-      nama: b.nama || '',
-      tipe: b.tipe || 'vip',
-      komisi: b.komisi || '',
-      platform: b.platform || 'tiktok',
-      followers: b.followers || '',
+      username: String(b.username).replace('@', '').trim().slice(0, 100),
+      nama: String(b.nama || '').slice(0, 150),
+      tipe, komisi: String(b.komisi || '').slice(0, 20), platform,
+      followers: String(b.followers || '').slice(0, 30),
       tanggal: b.tanggal || null,
       expire: b.expire || null,
-      produk: b.produk || [],
-      notes: b.notes || ''
+      produk,
+      notes: String(b.notes || '').slice(0, 1000)
     };
 
     if (b.id) {

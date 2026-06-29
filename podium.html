@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🏆 Podium Kreator — SKINKU Affiliate</title>
+<meta name="description" content="Top kreator affiliate SKINKU berdasarkan GMV dan video terbanyak.">
+<!-- Halaman ini PUBLIK, sengaja tidak ada script auth/login sama sekali -->
+<style>
+:root{
+  --pink:#ffb6c8;--pink2:#ff9eb5;--peach:#ffd4c4;--cream:#fff5f0;
+  --lavender:#d8c4ff;--gold:#ffd166;--gold2:#f4a72e;--silver:#d9d9e3;--bronze:#e8b894;
+  --text:#3a2a35;--text2:#8a7585;--white:#ffffff;
+  --shadow:0 8px 24px rgba(255,158,181,0.25);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:linear-gradient(160deg,#fff5f0 0%,#ffe8ee 45%,#f3e6ff 100%);
+  min-height:100vh;color:var(--text);
+  display:flex;flex-direction:column;align-items:center;
+  padding:32px 16px 60px;
+  overflow-x:hidden;
+}
+.header{text-align:center;margin-bottom:8px;animation:fadeDown .6s ease}
+.header .logo{font-size:13px;font-weight:800;letter-spacing:.12em;color:var(--pink2);text-transform:uppercase;margin-bottom:6px}
+.header h1{font-size:26px;font-weight:800;color:var(--text);margin-bottom:4px}
+.header p{font-size:13px;color:var(--text2)}
+.last-updated{font-size:11px;color:var(--text2);margin-top:4px;opacity:.8}
+
+.tabs{display:flex;gap:8px;background:rgba(255,255,255,0.6);border-radius:14px;padding:5px;margin:22px 0 10px;box-shadow:0 4px 14px rgba(255,158,181,0.15)}
+.tab-btn{border:none;background:none;padding:9px 20px;border-radius:10px;font-size:13px;font-weight:700;color:var(--text2);cursor:pointer;transition:all .25s}
+.tab-btn.active{background:linear-gradient(135deg,var(--pink),var(--pink2));color:#fff;box-shadow:0 4px 12px rgba(255,158,181,0.4)}
+
+.section{width:100%;max-width:680px;display:none}
+.section.active{display:block;animation:fadeIn .4s ease}
+
+/* ===== PODIUM ===== */
+.podium-wrap{display:flex;align-items:flex-end;justify-content:center;gap:10px;margin:36px 0 28px;padding:0 8px}
+.podium-slot{flex:1;max-width:200px;display:flex;flex-direction:column;align-items:center;animation:popUp .6s ease backwards}
+.podium-slot.s2{animation-delay:.1s}
+.podium-slot.s1{animation-delay:0s}
+.podium-slot.s3{animation-delay:.2s}
+
+.medal{font-size:34px;margin-bottom:6px;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.15))}
+.crown{position:absolute;top:-34px;font-size:30px;animation:bounce 2s infinite ease-in-out}
+
+.avatar-circle{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:#fff;margin-bottom:10px;position:relative;box-shadow:0 6px 16px rgba(0,0,0,0.15);border:4px solid #fff}
+.s1 .avatar-circle{width:92px;height:92px;font-size:32px;background:linear-gradient(135deg,var(--gold),var(--gold2))}
+.s2 .avatar-circle{background:linear-gradient(135deg,#c7c9e8,var(--silver))}
+.s3 .avatar-circle{background:linear-gradient(135deg,var(--bronze),#d49a6a)}
+
+.podium-username{font-weight:800;font-size:14px;margin-bottom:2px;text-align:center;word-break:break-all}
+.podium-metric-main{font-size:17px;font-weight:800;color:var(--pink2);margin-bottom:2px}
+.podium-metric-sub{font-size:11.5px;color:var(--text2);margin-bottom:10px}
+
+.podium-base{width:100%;border-radius:16px 16px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:10px;font-size:28px;font-weight:900;color:#fff;box-shadow:0 -4px 16px rgba(0,0,0,0.08)}
+.s1 .podium-base{height:120px;background:linear-gradient(160deg,var(--gold),var(--gold2));order:2}
+.s2 .podium-base{height:88px;background:linear-gradient(160deg,#dcdef0,var(--silver));order:1}
+.s3 .podium-base{height:64px;background:linear-gradient(160deg,var(--bronze),#d49a6a);order:1}
+.podium-wrap{align-items:flex-end}
+.podium-slot.s2{order:1}
+.podium-slot.s1{order:2}
+.podium-slot.s3{order:3}
+
+.empty-podium{text-align:center;padding:50px 20px;color:var(--text2);font-size:14px}
+
+/* ===== LIST CARD (rank 4+, kalau nanti diperluas; saat ini cuma top 3) ===== */
+.info-card{background:rgba(255,255,255,0.7);border-radius:16px;padding:18px 20px;margin-top:8px;box-shadow:var(--shadow);font-size:12.5px;color:var(--text2);text-align:center;line-height:1.6}
+.info-card b{color:var(--pink2)}
+
+.footer-brand{margin-top:36px;text-align:center;font-size:11.5px;color:var(--text2);opacity:.75}
+.footer-brand b{color:var(--pink2)}
+
+.loader{display:flex;justify-content:center;padding:60px 0;gap:8px}
+.loader span{width:10px;height:10px;border-radius:50%;background:var(--pink2);animation:bob 1s infinite ease-in-out}
+.loader span:nth-child(2){animation-delay:.15s}
+.loader span:nth-child(3){animation-delay:.3s}
+
+@keyframes fadeDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes popUp{from{opacity:0;transform:translateY(24px) scale(.92)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+@media (max-width:480px){
+  .header h1{font-size:21px}
+  .avatar-circle{width:58px;height:58px;font-size:20px}
+  .s1 .avatar-circle{width:76px;height:76px;font-size:26px;margin-top:4px}
+  .podium-metric-main{font-size:14px}
+  .podium-username{font-size:12.5px}
+  .s1 .podium-base{height:100px}
+  .s2 .podium-base{height:74px}
+  .s3 .podium-base{height:54px}
+  .crown{top:-28px;font-size:24px}
+  .podium-wrap{gap:6px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">✨ SKINKU Affiliate</div>
+  <h1>🏆 Podium Kreator</h1>
+  <p>Kreator dengan performa terbaik bulan ini</p>
+  <div class="last-updated" id="lastUpdated"></div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" id="tabGmv" onclick="switchTab('gmv')">💰 Top GMV</button>
+  <button class="tab-btn" id="tabVideo" onclick="switchTab('video')">🎬 Top Video</button>
+</div>
+
+<div class="section active" id="sectionGmv">
+  <div id="podiumGmv"><div class="loader"><span></span><span></span><span></span></div></div>
+</div>
+
+<div class="section" id="sectionVideo">
+  <div id="podiumVideo"><div class="loader"><span></span><span></span><span></span></div></div>
+</div>
+
+<div class="footer-brand">Dibuat dengan 💖 oleh <b>SKINKU</b> — Affiliate Analyzer</div>
+
+<script>
+function switchTab(tab){
+  document.getElementById('tabGmv').classList.toggle('active', tab==='gmv');
+  document.getElementById('tabVideo').classList.toggle('active', tab==='video');
+  document.getElementById('sectionGmv').classList.toggle('active', tab==='gmv');
+  document.getElementById('sectionVideo').classList.toggle('active', tab==='video');
+}
+
+function initials(username){
+  const clean = username.replace(/\*/g,'');
+  return (clean.slice(0,2) || '??').toUpperCase();
+}
+
+function renderPodium(containerId, data, metricKey, metricLabelFn, subLabelFn){
+  const el = document.getElementById(containerId);
+  if(!data || !data.length){
+    el.innerHTML = '<div class="empty-podium">Belum ada data buat ditampilkan.<br>Cek lagi nanti ya! 🌸</div>';
+    return;
+  }
+  const order = ['s2','s1','s3']; // urutan render: 2, 1, 3 (visual order diatur lewat CSS order property)
+  const ranks = [1,2,3];
+  let html = '<div class="podium-wrap">';
+  ranks.forEach((rank,i)=>{
+    const item = data[i];
+    if(!item){ html += '<div class="podium-slot s'+rank+'"></div>'; return; }
+    const slotClass = 's'+rank;
+    const medal = rank===1?'👑':rank===2?'🥈':'🥉';
+    html += `<div class="podium-slot ${slotClass}">
+      ${rank===1?'<div style="font-size:13px;font-weight:800;color:var(--gold2);margin-bottom:4px">JUARA 1</div>':''}
+      <div class="medal">${medal}</div>
+      <div class="avatar-circle">${initials(item.username)}</div>
+      <div class="podium-username">@${item.username}</div>
+      <div class="podium-metric-main">${metricLabelFn(item)}</div>
+      <div class="podium-metric-sub">${subLabelFn(item)}</div>
+      <div class="podium-base">${rank}</div>
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function loadPodium(){
+  try{
+    const res = await fetch('/api/podium');
+    if(!res.ok) throw new Error('Gagal ambil data');
+    const data = await res.json();
+
+    renderPodium('podiumGmv', data.topGmv, 'gmv',
+      item => item.gmvFormatted,
+      item => `${item.video} video`);
+
+    renderPodium('podiumVideo', data.topVideo, 'video',
+      item => item.video + ' video',
+      item => item.gmvFormatted);
+
+    if(data.updatedAt){
+      const d = new Date(data.updatedAt);
+      document.getElementById('lastUpdated').textContent = 'Update terakhir: ' + d.toLocaleString('id-ID', { dateStyle:'medium', timeStyle:'short' });
+    }
+  }catch(err){
+    document.getElementById('podiumGmv').innerHTML = '<div class="empty-podium">⚠️ Gagal memuat data. Coba refresh halaman ini.</div>';
+    document.getElementById('podiumVideo').innerHTML = '<div class="empty-podium">⚠️ Gagal memuat data. Coba refresh halaman ini.</div>';
+  }
+}
+
+loadPodium();
+</script>
+
+</body>
+</html>

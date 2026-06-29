@@ -1,8 +1,9 @@
 // api/send-otp.js
 // Stateless OTP: enkripsi OTP di signed token, kirim ke client
-// Tidak butuh database atau global memory
+// Tidak butuh database atau global memory (kecuali rate-limit counter di Supabase)
 
 const crypto = require('crypto');
+const { checkRateLimit, getClientIp } = require('./_rate-limit');
 
 function signToken(otp, secret) {
   const expires = Date.now() + 5 * 60 * 1000;
@@ -20,10 +21,22 @@ module.exports = async function handler(req, res) {
 
   const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   const CHAT_ID   = process.env.TELEGRAM_CHAT_ID;
-  const SECRET    = process.env.OTP_SECRET || 'skinku-affiliate-default-secret-2025';
+  const SECRET    = process.env.OTP_SECRET;
 
   if (!BOT_TOKEN || !CHAT_ID) {
     return res.status(500).json({ error: 'TELEGRAM_BOT_TOKEN atau TELEGRAM_CHAT_ID belum diset di Vercel' });
+  }
+  if (!SECRET) {
+    // Sengaja TIDAK ada fallback default — secret hardcode di kode adalah lubang keamanan.
+    return res.status(500).json({ error: 'OTP_SECRET belum diset di Environment Variables Vercel. Tambahkan dulu (string random apapun, minimal 32 karakter), lalu Redeploy.' });
+  }
+
+  // Rate limit: maksimal 3 kali kirim OTP per 5 menit per-IP, supaya tidak ada yang
+  // bisa spam kirim OTP berkali-kali (yang juga berarti spam pesan Telegram ke owner).
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit('otp_send', ip, { maxAttempts: 3, windowMs: 5 * 60 * 1000 });
+  if (!rl.allowed) {
+    return res.status(429).json({ error: `Terlalu banyak permintaan OTP. Coba lagi dalam ${rl.retryAfterSec} detik.` });
   }
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();

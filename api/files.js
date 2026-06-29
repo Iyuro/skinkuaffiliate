@@ -39,10 +39,14 @@ module.exports = async function handler(req, res) {
     if (!fileName || !Array.isArray(rows)) {
       return res.status(400).json({ error: 'fileName dan rows (array) wajib diisi' });
     }
+    // Validasi dasar: batasi ukuran input supaya endpoint ini tidak bisa dipakai
+    // buat membanjiri Supabase dengan payload raksasa (defense terhadap DoS sederhana).
+    if (fileName.length > 255) return res.status(400).json({ error: 'Nama file terlalu panjang (maks 255 karakter)' });
+    if (rows.length > 5000) return res.status(400).json({ error: 'Terlalu banyak baris dalam satu file (maks 5000)' });
 
     const { data: fileRow, error: fErr } = await supabase
       .from('uploaded_files')
-      .insert({ file_name: fileName, file_type: fileType || 'unknown', row_count: rows.length })
+      .insert({ file_name: String(fileName).slice(0, 255), file_type: fileType || 'unknown', row_count: rows.length })
       .select()
       .single();
     if (fErr) return res.status(500).json({ error: fErr.message });
@@ -50,19 +54,19 @@ module.exports = async function handler(req, res) {
     if (rows.length) {
       const payload = rows.map(r => ({
         file_id: fileRow.id,
-        name: r.name || '',
-        sampel_diminta: r.sampelDiminta || 0,
-        sampel_terkirim: r.sampelTerkirim || 0,
-        video_sampel: r.videoSampel || 0,
-        live_sampel: r.liveSampel || 0,
-        gmv: r.gmv || 0,
-        roi45: r.roi45 || 0,
-        roi90: r.roi90 || 0,
-        orders: r.orders || 0,
-        komisi: r.komisi || 0,
-        refund: r.refund || 0,
-        aov: r.aov || 0,
-        src: r.src || 'sample'
+        name: String(r.name || '').slice(0, 200),
+        sampel_diminta: Number(r.sampelDiminta) || 0,
+        sampel_terkirim: Number(r.sampelTerkirim) || 0,
+        video_sampel: Number(r.videoSampel) || 0,
+        live_sampel: Number(r.liveSampel) || 0,
+        gmv: Number(r.gmv) || 0,
+        roi45: Number(r.roi45) || 0,
+        roi90: Number(r.roi90) || 0,
+        orders: Number(r.orders) || 0,
+        komisi: Number(r.komisi) || 0,
+        refund: Number(r.refund) || 0,
+        aov: Number(r.aov) || 0,
+        src: r.src === 'transaction' ? 'transaction' : 'sample'
       }));
       const { error: rErr } = await supabase.from('creator_rows').insert(payload);
       if (rErr) return res.status(500).json({ error: rErr.message });

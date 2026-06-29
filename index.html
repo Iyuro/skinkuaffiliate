@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Affiliate Analyzer — SKINKU</title>
 <link rel="stylesheet" href="css/style.css">
+<script>document.documentElement.setAttribute('data-theme',localStorage.getItem('aa_theme')||'dark');</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 </head>
@@ -117,6 +118,7 @@
     <div class="topbar">
       <div class="topbar-title" id="topbarTitle">Upload Data</div>
       <span style="font-size:12px;color:var(--text3)" id="dataInfo">Belum ada data</span>
+      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Ganti tampilan terang/gelap">🌙</button>
       <button class="btn btn-ghost btn-sm" onclick="clearData()">🗑 Reset</button>
     </div>
     <div class="content">

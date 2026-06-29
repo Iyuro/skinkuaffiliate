@@ -7,15 +7,16 @@ Deploy guide + setup Telegram OTP + Supabase
 File sudah dipisah per bagian (HTML / CSS / JS) supaya lebih rapi dan mudah dicari kalau mau edit:
 ```
 affiliate-v2/
-├── index.html              ← Struktur halaman (HTML murni, tinggal link ke css/js)
+├── index.html              ← Struktur halaman dashboard (HTML murni, tinggal link ke css/js)
+├── podium.html              ← 🆕 Halaman PUBLIK (tanpa login) — podium top 3 GMV & Video
 ├── css/
-│   └── style.css           ← Semua styling
+│   └── style.css           ← Semua styling, termasuk theme dark & light pastel
 ├── js/
 │   ├── state.js            ← Variabel global & konstanta
 │   ├── tiktok.js           ← Helper link otomatis ke profil TikTok kreator
 │   ├── utils.js            ← Format angka/rupiah, parsing data, status & saran kreator
 │   ├── api-client.js       ← Layer komunikasi ke backend (/api/files, /api/exclusive)
-│   ├── notifications.js    ← 🆕 Badge alert sidebar, toast notification, animasi angka KPI
+│   ├── notifications.js    ← Badge alert sidebar, toast notification, animasi angka KPI, 🆕 toggle theme
 │   ├── auth.js             ← Login & OTP Telegram
 │   ├── upload.js           ← Proses file Excel + simpan/sync ke Supabase
 │   ├── dashboard.js        ← KPI grid + tabel Top Perform/Ghost/Rekomendasi
@@ -28,18 +29,20 @@ affiliate-v2/
 │   └── app.js              ← Pasang event listener & jalankan app (di-load terakhir)
 ├── api/
 │   ├── _supabase.js          ← Helper koneksi Supabase (server-side only, pakai service_role key)
-│   ├── _creator-logic.js     ← Logic status/saran kreator versi server (dipakai bot Telegram)
+│   ├── _creator-logic.js     ← Logic status/saran kreator versi server (dipakai bot Telegram & podium)
+│   ├── _rate-limit.js        ← 🆕 Rate limiter berbasis Supabase, cegah brute-force OTP
 │   ├── files.js              ← CRUD file upload + creator_rows (list/simpan/hapus per file)
 │   ├── exclusive.js          ← CRUD kolam kreator Affiliate Exclusive
 │   ├── telegram-webhook.js   ← Bot Telegram 2-arah + whitelist akses + Owner Panel
 │   ├── setup-webhook.js      ← Endpoint sekali-pakai buat daftarkan webhook ke Telegram
-│   ├── cron-daily-summary.js ← 🆕 Notifikasi harian otomatis (dipanggil Vercel Cron jam 9 pagi WIB)
-│   ├── send-otp.js           ← Serverless: kirim OTP via Telegram
-│   └── verify-otp.js         ← Serverless: verifikasi OTP
+│   ├── cron-daily-summary.js ← Notifikasi harian otomatis (dipanggil Vercel Cron jam 9 pagi WIB)
+│   ├── podium.js             ← 🆕 Endpoint PUBLIK buat data podium (username disensor di server)
+│   ├── send-otp.js           ← Serverless: kirim OTP via Telegram (sekarang rate-limited)
+│   └── verify-otp.js         ← Serverless: verifikasi OTP (sekarang rate-limited)
 ├── supabase/
 │   └── schema.sql          ← SQL buat bikin semua tabel di Supabase (copy-paste sekali aja)
 ├── package.json             ← Dependency @supabase/supabase-js
-└── vercel.json              ← Config Vercel
+└── vercel.json              ← Config Vercel — routing, cron, dan 🆕 security headers
 ```
 File JS di-load berurutan sesuai dependency-nya (state dulu, baru utils, baru fitur-fitur yang butuh utils, dst). Kalau mau nambah fitur baru, biasanya tinggal taruh di file yang paling relevan atau bikin file baru lalu daftarin di `<script>` tag paling bawah `index.html`.
 
@@ -148,11 +151,70 @@ Logic-nya ada di `js/notifications.js` (fungsi `updateAlertBadge`, `toast`, `ani
 
 ---
 
+## 🆕 TAMPILAN GELAP & TERANG (PASTEL)
+Klik ikon 🌙/☀️ di pojok kanan atas (sebelah tombol Reset) buat ganti tampilan:
+- **Gelap (default)** — tampilan lama, dark mode dengan aksen indigo/ungu
+- **Terang** — tampilan baru, palet pastel pink-peach-lavender mengikuti warna brand SKINKU
+
+Preferensi tersimpan di browser (localStorage), jadi begitu dipilih sekali, akan tetap dipakai di kunjungan berikutnya di device/browser yang sama. Ini beda dari data bisnis (file, kreator, exclusive) yang tersimpan di Supabase — preferensi tampilan sengaja tetap per-device karena memang preferensi visual personal, bukan data yang perlu disinkronkan.
+
+Semua warna pakai CSS variable (lihat `:root` dan `[data-theme="light"]` di awal `css/style.css`), jadi kalau mau sesuaikan nuansa pastelnya, cukup ubah di situ — tidak perlu sentuh ratusan baris CSS lain.
+
+---
+
+## 🆕 PODIUM PUBLIK (BISA DI-SHARE, TANPA LOGIN)
+Halaman baru di `/podium` — siapapun yang punya link ini **bisa lihat tanpa perlu OTP/login**, jadi cocok buat dibagikan ke kreator, tim, atau di story/grup.
+
+**Isinya:**
+- 🏆 Podium juara 1-2-3 berdasarkan **GMV tertinggi** (tab "💰 Top GMV")
+- 🏆 Podium juara 1-2-3 berdasarkan **jumlah video terbanyak** (tab "🎬 Top Video")
+- Layout podium klasik: juara 2 di kiri, juara 1 di tengah (paling tinggi, pakai mahkota 👑), juara 3 di kanan
+- Desain pastel pink-peach-gold sesuai warna SKINKU, responsive buat dibuka di HP
+
+**Privasi:** GMV dan jumlah video ditampilkan **persis/exact**, tapi **username kreator disensor sebagian** (contoh: `skinkubeauty` jadi `ski*********`) — jadi tetap bisa dibagikan tanpa membuka identitas penuh kreator ke publik. Sensor ini dilakukan di server (`api/podium.js`), bukan cuma disembunyikan lewat CSS, jadi tidak bisa "dibuka" lewat Inspect Element atau Network tab sekalipun.
+
+Data di-refresh otomatis tiap kali halaman dibuka (dengan cache singkat 30-60 detik di server biar tidak membanjiri Supabase kalau linknya viral/sering dibuka).
+
+> ⚠️ **Penting buat dipahami:** karena halaman ini publik, siapapun dengan link-nya bisa lihat data ini — termasuk kalau link-nya nyebar ke kompetitor. Itu kenapa username disensor. Kalau ke depannya merasa privasi ini masih kurang (misal mau sensor GMV juga, atau mau dikasih password ringan), tinggal bilang, ini bisa disesuaikan lagi.
+
+---
+
+## 🆕 KEAMANAN
+Beberapa pengamanan tambahan yang sudah diterapkan:
+
+**Rate limiting (anti brute-force OTP)**
+- Kirim OTP: maksimal 3x per 5 menit per alamat IP (`api/send-otp.js`)
+- Verifikasi OTP: maksimal 5x per 10 menit per alamat IP (`api/verify-otp.js`)
+- Kalau kena limit, akan muncul pesan "Terlalu banyak percobaan, coba lagi dalam X detik" — ini normal dan disengaja, bukan bug
+- Limit dihitung per-IP (disimpan di tabel `rate_limits` di Supabase), jadi orang lain di IP berbeda tidak ikut terblokir
+
+**OTP_SECRET wajib diset (perbaikan dari sebelumnya)**
+- Sebelumnya ada *default secret* tercetak di kode kalau `OTP_SECRET` belum diset — ini celah keamanan karena siapapun yang punya kode ini (termasuk dari riwayat chat ini) tahu juga secret defaultnya
+- Sekarang `OTP_SECRET` **wajib** diset manual di Environment Variable Vercel — kalau belum, sistem akan kasih error yang jelas (bukan diam-diam pakai default yang lemah). Lihat STEP 3.
+
+**Validasi input lebih ketat**
+- Nama file, username, dan field teks lain sekarang dibatasi panjangnya (mencegah payload raksasa yang bisa membanjiri database)
+- Upload file dibatasi maksimal 5000 baris kreator per file
+- Pilihan dropdown (tipe kreator, platform) divalidasi di server — input aneh otomatis fallback ke default yang aman, bukan bikin error 500
+
+**Security headers** (di `vercel.json`)
+- `X-Frame-Options` — cegah website ini disisipkan di iframe situs lain (clickjacking)
+- `X-Content-Type-Options` — cegah browser "menebak-nebak" tipe file yang bisa dieksploitasi
+- `Referrer-Policy` — kurangi informasi yang bocor ke situs lain saat ada link keluar
+- `Permissions-Policy` — matikan akses kamera/mikrofon/lokasi yang memang tidak dipakai
+
+**Apa yang TIDAK termasuk (penting buat dipahami):**
+- Ini bukan "anti-hacker" dalam arti mutlak kebal segala jenis serangan — tidak ada sistem yang benar-benar kebal. Ini adalah lapisan-lapisan pertahanan konkret untuk celah yang paling realistis terjadi pada aplikasi seperti ini (brute-force OTP, spam endpoint, payload raksasa, clickjacking)
+- Kalau Vercel/Supabase/Telegram sendiri kena masalah keamanan di sisi mereka, itu di luar kendali kode ini
+- **Tetap rotate `service_role key`** Supabase secara berkala, apalagi kalau pernah ter-ekspos (misal pernah di-paste di chat/dokumen yang tidak private)
+
+---
+
 ## STEP 0 — Setup Supabase (WAJIB, sebelum deploy)
 
 1. Buka [supabase.com](https://supabase.com) → buat project baru (atau pakai yang sudah ada)
 2. Buka **SQL Editor** di sidebar Supabase → New Query
-3. Copy-paste seluruh isi file `supabase/schema.sql` → klik **Run**. Ini bikin 4 tabel: `uploaded_files`, `creator_rows`, `exclusive_creators`, `bot_users` (whitelist akses bot Telegram)
+3. Copy-paste seluruh isi file `supabase/schema.sql` → klik **Run**. Ini bikin 5 tabel: `uploaded_files`, `creator_rows`, `exclusive_creators`, `bot_users` (whitelist akses bot Telegram), `rate_limits` (anti brute-force OTP)
 4. Buka **Settings → API** di Supabase Dashboard, catat 2 hal ini:
    - **Project URL** (contoh: `https://xxxxx.supabase.co`)
    - **service_role key** (di bagian "Project API keys" — **BUKAN** yang `anon`/`public`)
@@ -202,6 +264,7 @@ Tambahkan:
 | `TELEGRAM_CHAT_ID` | Chat ID lo dari @userinfobot (ini jadi Chat ID **owner**) |
 | `SUPABASE_URL` | Project URL dari Supabase (STEP 0) |
 | `SUPABASE_SERVICE_KEY` | service_role key dari Supabase (STEP 0) — **jangan** pakai anon key |
+| `OTP_SECRET` | **🆕 WAJIB.** String random apapun, minimal 32 karakter (contoh: buka [randomkeygen.com](https://randomkeygen.com) atau ketik sembarang huruf/angka panjang). Dipakai buat tanda tangani OTP — kalau belum diset, login via OTP tidak akan jalan dan akan muncul pesan error yang jelas |
 | `SITE_URL` | URL website lo, contoh: `https://affiliate-skinku.vercel.app` (buat tombol "🌐 Buka Dashboard" di bot) |
 | `CRON_SECRET` | *(opsional tapi disarankan)* String random apapun, buat lindungi endpoint notifikasi harian — lihat "🆕 NOTIFIKASI HARIAN OTOMATIS" |
 
@@ -265,10 +328,16 @@ AI akan generate kode → ada tombol "⬇ Download kode" → tinggal lihat kode-
 
 ## TROUBLESHOOTING
 
-**OTP tidak terkirim:**
-- Pastikan env variables sudah diset di Vercel dan sudah Redeploy
+**OTP tidak terkirim / "OTP_SECRET belum diset":**
+- Ini wajib diset sekarang — buka Vercel → Environment Variables → tambah `OTP_SECRET` (string random apapun, minimal 32 karakter) → **Redeploy**
+- Pastikan env variables lain (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`) juga sudah diset dan sudah Redeploy
 - Pastikan sudah `/start` di bot Telegram lo
 - Cek TELEGRAM_CHAT_ID benar (dari @userinfobot)
+
+**"Terlalu banyak percobaan, coba lagi dalam X detik" saat login:**
+- Ini rate limiting yang disengaja (anti brute-force OTP) — bukan bug
+- Tunggu sesuai waktu yang ditampilkan, atau minta OTP baru kalau sudah lewat dari waktu yang disebutkan
+- Kalau ini muncul terus padahal baru coba sekali, cek tabel `rate_limits` di Supabase Table Editor — kemungkinan ada percobaan lama yang belum "expired" karena jam server beda, hapus manual baris terkait kalau perlu
 
 **AI tidak bisa:**
 - Pastikan API Key format `sk-...` dan valid
@@ -304,3 +373,12 @@ AI akan generate kode → ada tombol "⬇ Download kode" → tinggal lihat kode-
 - Cek **Vercel Dashboard → Project → Cron Jobs** buat lihat riwayat eksekusi & error-nya
 - Pastikan minimal sudah ada 1 file yang diupload — kalau belum ada data sama sekali, notifikasi memang sengaja tidak dikirim
 - Kalau pakai `CRON_SECRET`, pastikan tidak ada typo antara yang di Environment Variable Vercel dengan ekspektasi kode (endpoint ini dipanggil otomatis oleh Vercel, jadi seharusnya selalu cocok asal env var sudah diset sebelum deploy terakhir)
+
+**Halaman /podium kosong / "Belum ada data":**
+- Normal kalau belum ada file yang diupload sama sekali
+- Kalau sudah ada data tapi tetap kosong, cek `https://domain-lo.vercel.app/api/podium` langsung di browser — harus muncul JSON berisi `topGmv` dan `topVideo`. Kalau muncul error, baca pesannya (biasanya soal `SUPABASE_URL`/`SUPABASE_SERVICE_KEY`)
+- Data podium di-cache 30-60 detik, jadi kalau baru upload file, tunggu sebentar atau hard refresh (Ctrl+Shift+R) buat lihat data terbaru
+
+**Tampilan terang/gelap tidak berubah saat diklik:**
+- Coba hard refresh (Ctrl+Shift+R / Cmd+Shift+R) — kemungkinan browser masih cache versi `css/style.css` yang lama
+- Cek Console (F12) ada error JavaScript atau tidak saat tombol diklik

@@ -83,6 +83,17 @@ create table if not exists bot_users (
   added_at timestamptz not null default now()
 );
 
+-- ============ 5. RATE_LIMITS ============
+-- Dipakai api/verify-otp.js & api/send-otp.js buat cegah brute-force OTP per-IP.
+-- Baris lama otomatis tidak relevan lagi setelah window_start lewat — dibersihkan
+-- sendiri secara lazy (dihapus saat IP itu request lagi setelah window habis).
+create table if not exists rate_limits (
+  id uuid primary key default gen_random_uuid(),
+  key text not null unique, -- contoh: 'otp_verify:103.21.45.67'
+  attempt_count integer not null default 1,
+  window_start timestamptz not null default now()
+);
+
 -- ============ RLS ============
 -- Dimatikan: semua akses lewat serverless function (service_role key),
 -- tidak ada akses langsung dari browser ke Supabase.
@@ -90,3 +101,4 @@ alter table uploaded_files disable row level security;
 alter table creator_rows disable row level security;
 alter table exclusive_creators disable row level security;
 alter table bot_users disable row level security;
+alter table rate_limits disable row level security;
