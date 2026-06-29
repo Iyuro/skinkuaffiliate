@@ -4,10 +4,11 @@ function switchView(view){
   document.getElementById('view-'+view).classList.add('active');
   document.querySelectorAll('.nav-item[id]').forEach(n=>n.classList.remove('active'));
   const navEl=document.getElementById('nav-'+view);if(navEl)navEl.classList.add('active');
-  const titles={upload:'Upload Data',dashboard:'Dashboard',kreator:'Kreator List',exclusive:'Affiliate Exclusive',ai:'AI Analyst',settings:'Settings'};
+  const titles={upload:'Upload Data',dashboard:'Dashboard',kreator:'Kreator List',exclusive:'Affiliate Exclusive',rank:'🏆 Rank Kreator',ai:'AI Analyst',settings:'Settings'};
   document.getElementById('topbarTitle').textContent=titles[view]||view;
   if(view==='kreator'&&allData.length)renderKreatorTable();
-  if(view==='dashboard'&&allData.length){renderKPIGrid();renderDashboard();renderCharts();}
+  if(view==='dashboard'&&allData.length){renderKPIGrid();renderDashboard();setTimeout(()=>renderCharts(),80);}
+  if(view==='rank'&&allData.length)renderRankView();
 }
 function updateDataInfo(){document.getElementById('dataInfo').textContent=allData.length?`${allData.length} kreator loaded`:'Belum ada data';}
 // "Reset" di topbar sekarang artinya sync ulang dari server (bukan hapus data),

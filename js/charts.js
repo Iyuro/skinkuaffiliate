@@ -44,7 +44,8 @@ function renderGmvChart(){
   destroyChart('gmv');
   const top=[...allData].sort((a,b)=>b.gmv-a.gmv).slice(0,10);
   if(!top.length)return;
-  chartInstances.gmv=new Chart(canvas,{
+  const ctx=canvas.getContext('2d');
+  chartInstances.gmv=new Chart(ctx,{
     type:'bar',
     data:{
       labels:top.map(r=>'@'+r.name),
@@ -65,7 +66,8 @@ function renderSampleVsVideoChart(){
   destroyChart('sampleVsVideo');
   const top=[...allData].filter(r=>r.sampelTerkirim>0||r.sampelDiminta>0).sort((a,b)=>b.sampelTerkirim-a.sampelTerkirim).slice(0,10);
   if(!top.length)return;
-  chartInstances.sampleVsVideo=new Chart(canvas,{
+  const ctx=canvas.getContext('2d');
+  chartInstances.sampleVsVideo=new Chart(ctx,{
     type:'bar',
     data:{
       labels:top.map(r=>'@'+r.name),
@@ -113,7 +115,8 @@ function renderTrendChart(){
   canvas.style.display='block';
   if(emptyEl)emptyEl.style.display='none';
 
-  chartInstances.trend=new Chart(canvas,{
+  const ctx=canvas.getContext('2d');
+  chartInstances.trend=new Chart(ctx,{
     type:'line',
     data:{
       labels:points.map(p=>p.label),

@@ -68,7 +68,7 @@ function showSyncError(msg){
 }
 
 function renderAll(){
-  renderFileChips();renderUploadKPI();renderKPIGrid();renderDashboard();renderKreatorTable();updateDataInfo();renderCharts();updateAlertBadge();
+  renderFileChips();renderUploadKPI();renderKPIGrid();renderDashboard();renderKreatorTable();updateDataInfo();setTimeout(()=>renderCharts(),80);updateAlertBadge();renderRankView();
   document.getElementById('kreatorBadge').style.display=allData.length?'inline':'none';
   document.getElementById('kreatorBadge').textContent=allData.length;
 }
