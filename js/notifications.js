@@ -24,7 +24,7 @@ function toast(message, type){
     container.className='toast-container';
     document.body.appendChild(container);
   }
-  const icons={success:appIcon('check','sm'),error:appIcon('warn','sm'),info:appIcon('info','sm')};
+  const icons={success:'✅',error:'⚠️',info:'ℹ️'};
   const el=document.createElement('div');
   el.className=`toast toast-${type}`;
   el.innerHTML=`<span class="toast-icon">${icons[type]||icons.info}</span><span class="toast-msg">${message}</span>`;

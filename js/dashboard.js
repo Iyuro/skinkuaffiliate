@@ -1,7 +1,7 @@
 function renderFileChips(){
   document.getElementById('fileChips').innerHTML=loadedFiles.map(f=>`<div class="chip">
     <span class="chip-dot"></span>${escapeHtml(f.name)} <span style="color:var(--text3)">(${f.count})</span>
-    <button class="chip-del" title="Hapus file ini" onclick="deleteFile('${f.id}','${escapeHtml(f.name).replace(/'/g,"\\'")}')">${appIcon('close','sm')}</button>
+    <button class="chip-del" title="Hapus file ini" onclick="deleteFile('${f.id}','${escapeHtml(f.name).replace(/'/g,"\\'")}')">✕</button>
   </div>`).join('');
   document.getElementById('uploadEmpty').style.display=loadedFiles.length?'none':'block';
   document.getElementById('uploadSummary').style.display=loadedFiles.length?'block':'none';
@@ -14,7 +14,7 @@ function renderUploadKPI(){
     <div class="kpi-card"><div class="kpi-label">Total GMV</div><div class="kpi-value" style="color:var(--accent3)">${fmtRp(tGMV)}</div></div>
     <div class="kpi-card"><div class="kpi-label">Sampel Terkirim</div><div class="kpi-value">${fmtN(tK)}<span style="font-size:13px;font-weight:400;color:var(--text3)"> pcs</span></div></div>
     <div class="kpi-card"><div class="kpi-label">Video Diposting</div><div class="kpi-value" style="color:var(--green)">${fmtN(tV)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">${appIcon('check','sm')} Perform</div><div class="kpi-value" style="color:var(--green)">${perf}</div></div>`;
+    <div class="kpi-card"><div class="kpi-label">🔥 Perform</div><div class="kpi-value" style="color:var(--green)">${perf}</div></div>`;
 }
 
 function renderKPIGrid(){
@@ -26,14 +26,14 @@ function renderKPIGrid(){
   const sm={};d.forEach(r=>{const s=getStatus(r);sm[s]=(sm[s]||0)+1;});
   const kc=konv>=50?'var(--green)':konv>=20?'var(--amber)':'var(--red)';
   document.getElementById('kpiGrid').innerHTML=`
-    <div class="kpi-card accent"><div class="kpi-label">${appIcon('dashboard','sm')} Total GMV</div><div class="kpi-value" id="kpiGmv" style="color:var(--accent3)">Rp 0</div></div>
-    <div class="kpi-card"><div class="kpi-label">${appIcon('list','sm')} Sampel Diminta</div><div class="kpi-value" id="kpiDiminta">0</div><div class="kpi-sub">${d.filter(r=>r.sampelDiminta>0).length} kreator</div></div>
-    <div class="kpi-card"><div class="kpi-label">${appIcon('upload','sm')} Sampel Terkirim</div><div class="kpi-value" id="kpiTerkirim">0</div><div class="kpi-sub">${d.filter(r=>r.sampelTerkirim>0).length} kreator</div></div>
-    <div class="kpi-card"><div class="kpi-label">${appIcon('creator','sm')} Video dari Sampel</div><div class="kpi-value" id="kpiVideo" style="color:var(--green)">0</div><div class="kpi-sub">+ ${fmtN(tL)} LIVE</div></div>
-    <div class="kpi-card"><div class="kpi-label">${appIcon('refresh','sm')} Konversi Sampel→Video</div><div class="kpi-value" id="kpiKonv" style="color:${kc}">0%</div></div>
-    <div class="kpi-card"><div class="kpi-label">${appIcon('check','sm')} Perform</div><div class="kpi-value" id="kpiPerform" style="color:var(--green)">0</div></div>
-    <div class="kpi-card"><div class="kpi-label">${appIcon('stop','sm')} Boncos</div><div class="kpi-value" id="kpiBoncos" style="color:var(--red)">0</div></div>
-    <div class="kpi-card"><div class="kpi-label">${appIcon('clock','sm')} Ghost</div><div class="kpi-value" id="kpiGhost" style="color:var(--amber)">0</div><div class="kpi-sub">0 video dari sampel</div></div>`;
+    <div class="kpi-card accent"><div class="kpi-label">Total GMV</div><div class="kpi-value" id="kpiGmv" style="color:var(--accent3)">Rp 0</div></div>
+    <div class="kpi-card"><div class="kpi-label">Sampel Diminta</div><div class="kpi-value" id="kpiDiminta">0</div><div class="kpi-sub">${d.filter(r=>r.sampelDiminta>0).length} kreator</div></div>
+    <div class="kpi-card"><div class="kpi-label">Sampel Terkirim</div><div class="kpi-value" id="kpiTerkirim">0</div><div class="kpi-sub">${d.filter(r=>r.sampelTerkirim>0).length} kreator</div></div>
+    <div class="kpi-card"><div class="kpi-label">Video dari Sampel</div><div class="kpi-value" id="kpiVideo" style="color:var(--green)">0</div><div class="kpi-sub">+ ${fmtN(tL)} LIVE</div></div>
+    <div class="kpi-card"><div class="kpi-label">Konversi Sampel→Video</div><div class="kpi-value" id="kpiKonv" style="color:${kc}">0%</div></div>
+    <div class="kpi-card"><div class="kpi-label">🔥 Perform</div><div class="kpi-value" id="kpiPerform" style="color:var(--green)">0</div></div>
+    <div class="kpi-card"><div class="kpi-label">❌ Boncos</div><div class="kpi-value" id="kpiBoncos" style="color:var(--red)">0</div></div>
+    <div class="kpi-card"><div class="kpi-label">👻 Ghost</div><div class="kpi-value" id="kpiGhost" style="color:var(--amber)">0</div><div class="kpi-sub">0 video dari sampel</div></div>`;
   // Angka naik dari 0 ke nilai asli — bikin dashboard kerasa lebih "hidup" tiap kali data berubah.
   animateNumber(document.getElementById('kpiGmv'),tGMV,fmtRp);
   animateNumber(document.getElementById('kpiDiminta'),tD,fmtN);
@@ -70,7 +70,7 @@ function renderDashboard(){
 function renderDashTable(key,bodyId,pagerId,infoId,rowFn){
   const data=dashData[key],p=pages[key],total=data.length,start=(p-1)*DASH_SIZE,slice=data.slice(start,start+DASH_SIZE);
   const body=document.getElementById(bodyId);
-  if(!slice.length){body.innerHTML=`<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">${key==='ghost'?`${appIcon('info','sm')} Tidak ada ghost kreator!`:key==='rekomen'?'Belum ada rekomendasi':'Belum ada data perform'}</td></tr>`;document.getElementById(pagerId).style.display='none';return;}
+  if(!slice.length){body.innerHTML=`<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">${key==='ghost'?'✅ Tidak ada ghost kreator!':key==='rekomen'?'Belum ada rekomendasi':'Belum ada data perform'}</td></tr>`;document.getElementById(pagerId).style.display='none';return;}
   body.innerHTML=slice.map(r=>`<tr>${rowFn(r)}</tr>`).join('');
   if(total>DASH_SIZE){
     document.getElementById(pagerId).style.display='flex';

@@ -53,12 +53,6 @@ async function apiDeleteExclusive(id) {
   return res.json();
 }
 
-async function apiGetPublicRank() {
-  const res = await fetch('/api/rank-public');
-  if (!res.ok) throw new Error((await res.json()).error || 'Gagal ambil data rank publik');
-  return res.json();
-}
-
 // ---------- KONVERSI row Supabase (snake_case) ↔ row internal app (camelCase) ----------
 // Supabase nyimpen kolom dengan nama snake_case (sampel_diminta, dst), sedangkan
 // seluruh logic existing app ini (getStatus, getSaran, dashboard, dll) pakai camelCase.

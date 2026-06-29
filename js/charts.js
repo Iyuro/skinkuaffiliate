@@ -105,7 +105,7 @@ function renderTrendChart(){
     .map(f=>({ label:f.name.length>16?f.name.slice(0,14)+'…':f.name, uploadedAt:f.uploadedAt, ...byFile[f.id] }))
     .sort((a,b)=>new Date(a.uploadedAt)-new Date(b.uploadedAt));
 
-  if(points.length===0){
+  if(points.length<2){
     canvas.style.display='none';
     if(emptyEl)emptyEl.style.display='block';
     return;

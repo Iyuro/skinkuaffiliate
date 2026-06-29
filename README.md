@@ -28,11 +28,12 @@ affiliate-v2/
 │   └── app.js              ← Pasang event listener & jalankan app (di-load terakhir)
 ├── api/
 │   ├── _supabase.js          ← Helper koneksi Supabase (server-side only, pakai service_role key)
-│   ├── _creator-logic.js     ← 🆕 Logic status/saran kreator versi server (dipakai bot Telegram)
+│   ├── _creator-logic.js     ← Logic status/saran kreator versi server (dipakai bot Telegram)
 │   ├── files.js              ← CRUD file upload + creator_rows (list/simpan/hapus per file)
 │   ├── exclusive.js          ← CRUD kolam kreator Affiliate Exclusive
-│   ├── telegram-webhook.js   ← 🆕 Bot Telegram 2-arah (terima klik button, balas data dari Supabase)
-│   ├── setup-webhook.js      ← 🆕 Endpoint sekali-pakai buat daftarkan webhook ke Telegram
+│   ├── telegram-webhook.js   ← Bot Telegram 2-arah + whitelist akses + Owner Panel
+│   ├── setup-webhook.js      ← Endpoint sekali-pakai buat daftarkan webhook ke Telegram
+│   ├── cron-daily-summary.js ← 🆕 Notifikasi harian otomatis (dipanggil Vercel Cron jam 9 pagi WIB)
 │   ├── send-otp.js           ← Serverless: kirim OTP via Telegram
 │   └── verify-otp.js         ← Serverless: verifikasi OTP
 ├── supabase/
@@ -78,17 +79,31 @@ Logic-nya ada di `js/tiktok.js` (fungsi `renderCreatorLink`). Username dibersihk
 ---
 
 ## 🆕 BOT TELEGRAM INTERAKTIF
-Bot Telegram lo sekarang bisa lebih dari kirim OTP doang — bisa ditanya langsung dan jawab pakai data dari Supabase, lewat tombol (nggak perlu ketik command).
+Bot Telegram lo sekarang bisa lebih dari kirim OTP doang — bisa ditanya langsung dan jawab pakai data dari Supabase, lewat tombol (nggak perlu ketik command), dan bisa dipakai lebih dari 1 orang.
 
-**Cara pakai:** buka chat bot lo di Telegram, ketik apa aja (atau `/start`) → muncul menu dengan tombol:
+**Cara pakai:** buka chat bot, ketik apa aja (atau `/start`) → muncul menu dengan tombol:
 - **📊 Ringkasan Hari Ini** — total kreator, GMV, sampel terkirim, video, jumlah perform/boncos/ghost
 - **🔥 Top Perform** — 10 kreator GMV tertinggi yang statusnya perform, lengkap dengan link TikTok & ROI
 - **👻 Ghost Kreator** — kreator yang dapat sampel tapi 0 video, 0 GMV
 - **🔵 Rekomendasi Sampel** — kreator dengan GMV organic yang worth dikirim sampel
 - **⏰ Kontrak Expire** — kreator VIP/Kontrak di Affiliate Exclusive yang sudah/akan expire dalam 7 hari
+- **🌐 Buka Dashboard** — tombol yang langsung buka website (kalau `SITE_URL` sudah diset, lihat STEP 3)
 - **🔄 Refresh** — balik ke menu utama
 
-Semua data diambil real-time dari Supabase setiap tombol diklik — jadi selalu sinkron dengan apa yang ada di website. Bot ini **cuma akan merespon ke `TELEGRAM_CHAT_ID` yang terdaftar** di Environment Variable (1 admin/tim, bukan bot publik) — chat dari ID lain otomatis di-ignore.
+Semua data diambil real-time dari Supabase setiap tombol diklik — jadi selalu sinkron dengan apa yang ada di website.
+
+### Siapa yang boleh akses bot?
+Bot ini **bukan bot publik** — cuma 2 jenis orang yang boleh pakai:
+1. **Owner** — `TELEGRAM_CHAT_ID` yang diset di Environment Variable Vercel (itu lo)
+2. **Whitelist** — siapapun yang ditambahkan owner lewat **Owner Panel** di bot, tersimpan di tabel `bot_users` di Supabase
+
+Orang di whitelist dapat **akses penuh** ke semua menu data (sama seperti owner) — bedanya cuma menu **👑 Owner Panel** yang cuma kelihatan & bisa diakses kalau owner yang chat. Chat dari Chat ID yang tidak ada di keduanya akan **diam-diam di-ignore** (bot tidak balas apa-apa).
+
+### Cara nambah/hapus orang yang boleh akses (cuma owner yang bisa)
+1. Di bot, klik tombol **👑 Owner Panel** (cuma muncul kalau lo yang chat)
+2. **Nambah orang:** kirim pesan `/adduser <chat_id> <nama>` — contoh: `/adduser 123456789 Budi`. Chat ID orang itu bisa didapat lewat **@userinfobot** di Telegram (sama seperti cara lo dapat Chat ID lo sendiri di STEP 1)
+3. **Hapus orang:** kirim pesan `/removeuser <chat_id>`
+4. Klik **👥 Lihat Daftar User** buat lihat siapa aja yang sudah punya akses
 
 ### Setup webhook (WAJIB, sekali aja)
 Bot butuh "webhook" supaya bisa nerima & balas pesan secara real-time. Cara daftarinnya:
@@ -97,9 +112,28 @@ Bot butuh "webhook" supaya bisa nerima & balas pesan secara real-time. Cara daft
 3. Kalau berhasil, muncul JSON `{"success": true, ...}` — webhook langsung aktif
 4. Buka chat bot lo di Telegram, ketik `/start` → menu tombol langsung muncul
 
-Endpoint ini cuma perlu dibuka **sekali** (kecuali nanti ganti domain Vercel, baru perlu buka ulang). Logic bot-nya ada di `api/telegram-webhook.js`, builder tiap menu di file yang sama, dan rumus status/saran kreator versi server di `api/_creator-logic.js` (port dari `js/utils.js` biar hasilnya konsisten sama website).
+Endpoint ini cuma perlu dibuka **sekali** (kecuali nanti ganti domain Vercel, baru perlu buka ulang). Logic bot-nya ada di `api/telegram-webhook.js`, dan rumus status/saran kreator versi server di `api/_creator-logic.js` (port dari `js/utils.js` biar hasilnya konsisten sama website).
 
 > Catatan: parameter ROI minimum buat "perform" (`roiPerform`) di bot pakai default `3` (sama seperti default di Settings website). Kalau lo ubah angka ini di Settings website, bot belum otomatis ikut berubah karena setting itu masih tersimpan di localStorage browser, bukan di Supabase — kalau dibutuhkan, ini bisa jadi pengembangan lanjutan.
+
+---
+
+## 🆕 NOTIFIKASI HARIAN OTOMATIS
+Tiap hari jam **09:00 WIB**, bot otomatis kirim ringkasan ke **semua orang** yang punya akses (owner + whitelist) — tanpa perlu buka bot manual. Isinya:
+- Ringkasan singkat (total kreator, GMV, sampel, video, perform/boncos/ghost)
+- Daftar ghost kreator yang perlu dicek (kalau ada)
+- Status kontrak/VIP yang sudah/akan expire (kalau ada)
+
+Kalau belum ada data sama sekali yang diupload, notifikasi otomatis **tidak dikirim** (supaya tidak spam pesan kosong).
+
+Dijadwalkan lewat **Vercel Cron** di `vercel.json` (`"schedule": "0 2 * * *"` — 02:00 UTC = 09:00 WIB), memanggil `api/cron-daily-summary.js`. Kalau mau ganti jam, edit baris `schedule` itu pakai format [cron syntax](https://crontab.guru) (ingat: Vercel pakai UTC, WIB = UTC+7).
+
+> ⚠️ Vercel Cron Jobs di paket **Hobby (gratis)** kadang hanya jalan 1x/hari dengan akurasi waktu yang fleksibel (bisa lebih lambat beberapa menit/jam dari yang dijadwalkan). Untuk presisi jam yang ketat, perlu paket **Pro**.
+
+### Keamanan endpoint cron (opsional tapi disarankan)
+Endpoint `/api/cron-daily-summary` bisa dipanggil siapa saja kalau URL-nya ketahuan (karena ini bukan webhook Telegram yang aman secara default). Buat nutup ini:
+1. Set Environment Variable baru di Vercel: `CRON_SECRET` (isi bebas, contoh: string random panjang)
+2. Vercel otomatis mengirim header `Authorization: Bearer <CRON_SECRET>` itu setiap kali Cron Job jalan — endpoint akan menolak request yang tidak punya header yang cocok
 
 ---
 
@@ -118,7 +152,7 @@ Logic-nya ada di `js/notifications.js` (fungsi `updateAlertBadge`, `toast`, `ani
 
 1. Buka [supabase.com](https://supabase.com) → buat project baru (atau pakai yang sudah ada)
 2. Buka **SQL Editor** di sidebar Supabase → New Query
-3. Copy-paste seluruh isi file `supabase/schema.sql` → klik **Run**. Ini bikin 3 tabel: `uploaded_files`, `creator_rows`, `exclusive_creators`
+3. Copy-paste seluruh isi file `supabase/schema.sql` → klik **Run**. Ini bikin 4 tabel: `uploaded_files`, `creator_rows`, `exclusive_creators`, `bot_users` (whitelist akses bot Telegram)
 4. Buka **Settings → API** di Supabase Dashboard, catat 2 hal ini:
    - **Project URL** (contoh: `https://xxxxx.supabase.co`)
    - **service_role key** (di bagian "Project API keys" — **BUKAN** yang `anon`/`public`)
@@ -165,9 +199,11 @@ Tambahkan:
 | Key | Value |
 |-----|-------|
 | `TELEGRAM_BOT_TOKEN` | Token dari BotFather |
-| `TELEGRAM_CHAT_ID` | Chat ID lo dari @userinfobot |
+| `TELEGRAM_CHAT_ID` | Chat ID lo dari @userinfobot (ini jadi Chat ID **owner**) |
 | `SUPABASE_URL` | Project URL dari Supabase (STEP 0) |
 | `SUPABASE_SERVICE_KEY` | service_role key dari Supabase (STEP 0) — **jangan** pakai anon key |
+| `SITE_URL` | URL website lo, contoh: `https://affiliate-skinku.vercel.app` (buat tombol "🌐 Buka Dashboard" di bot) |
+| `CRON_SECRET` | *(opsional tapi disarankan)* String random apapun, buat lindungi endpoint notifikasi harian — lihat "🆕 NOTIFIKASI HARIAN OTOMATIS" |
 
 Setelah set → klik **Redeploy** supaya env variables aktif.
 
@@ -251,5 +287,20 @@ AI akan generate kode → ada tombol "⬇ Download kode" → tinggal lihat kode-
 - Pastikan sudah buka `/api/setup-webhook` minimal sekali setelah deploy/redeploy terakhir
 - Buka `/api/setup-webhook` lagi — kalau hasilnya `{"success": true}`, webhook sudah aktif, coba `/start` ulang di bot
 - Kalau hasilnya error, baca pesan `detail`-nya — biasanya soal `TELEGRAM_BOT_TOKEN` yang salah/belum diset
-- Bot cuma respon ke `TELEGRAM_CHAT_ID` yang terdaftar di env variable — kalau chat dari akun Telegram lain, bot diam saja (ini disengaja, bukan bug)
+- Bot cuma respon ke `TELEGRAM_CHAT_ID` (owner) atau Chat ID yang ada di tabel `bot_users` (whitelist) — chat dari Chat ID lain, bot diam saja (ini disengaja, bukan bug)
 - Cek **Vercel Dashboard → Project → Logs** buat lihat error detail kalau masih nggak jalan
+
+**Tombol "👑 Owner Panel" tidak muncul:**
+- Pastikan yang chat itu Chat ID yang sama persis dengan `TELEGRAM_CHAT_ID` di Environment Variable Vercel
+- Cek lagi Chat ID lo lewat @userinfobot, kadang ketukar sama Chat ID grup/channel
+
+**Orang yang sudah di-`/adduser` masih tidak bisa akses:**
+- Pastikan Chat ID yang dimasukkan benar (angka doang, tanpa spasi/karakter lain) — minta orang itu cek Chat ID-nya sendiri lewat @userinfobot
+- Cek lewat tombol "👥 Lihat Daftar User" di Owner Panel buat pastikan Chat ID-nya benar-benar tersimpan
+- Orang itu harus sudah pernah `/start` bot-nya sendiri minimal sekali (Telegram tidak bisa kirim pesan ke orang yang belum pernah memulai chat dengan bot)
+
+**Notifikasi harian jam 9 pagi tidak muncul:**
+- Vercel Cron di paket **Hobby (gratis)** kadang telat beberapa menit dari jadwal — ini normal, bukan bug
+- Cek **Vercel Dashboard → Project → Cron Jobs** buat lihat riwayat eksekusi & error-nya
+- Pastikan minimal sudah ada 1 file yang diupload — kalau belum ada data sama sekali, notifikasi memang sengaja tidak dikirim
+- Kalau pakai `CRON_SECRET`, pastikan tidak ada typo antara yang di Environment Variable Vercel dengan ekspektasi kode (endpoint ini dipanggil otomatis oleh Vercel, jadi seharusnya selalu cocok asal env var sudah diset sebelum deploy terakhir)

@@ -64,7 +64,7 @@ async function loadAllDataFromServer(){
 
 function showSyncError(msg){
   const el=document.getElementById('dataInfo');
-  if(el)el.innerHTML=`${appIcon('warn','sm')} Gagal sync: ${msg}`;
+  if(el)el.textContent='⚠️ Gagal sync: '+msg;
 }
 
 function renderAll(){

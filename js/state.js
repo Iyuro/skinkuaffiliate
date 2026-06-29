@@ -9,10 +9,7 @@ let allData = [], loadedFiles = [], currentTab = 'all', aiMode = 'analyst', chat
 let rawRows = [];
 let exclusiveData = [];
 let efTags = [];
-let rankPodiumStyle = 1;
 let pages = { kreator: 1, perform: 1, ghost: 1, rekomen: 1 };
 const PAGE_SIZE = 20, DASH_SIZE = 5;
 let settings = { apiKey: localStorage.getItem('aa_apikey') || '', model: 'gpt-4o-mini', roiPerform: 3, gmvOrganic: 100000 };
 let isSyncing = false; // true selagi fetch/sync ke Supabase berlangsung, dipakai buat nampilin indikator loading
-let favorites = JSON.parse(localStorage.getItem('aa_favs')||'[]');
-window.favorites = favorites;

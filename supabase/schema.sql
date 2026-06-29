@@ -70,9 +70,23 @@ create table if not exists exclusive_creators (
   added_at timestamptz not null default now()
 );
 
+-- ============ 4. BOT_USERS ============
+-- Whitelist Chat ID Telegram yang boleh akses bot. Selain TELEGRAM_CHAT_ID (owner,
+-- diset lewat Environment Variable Vercel), siapapun di tabel ini juga bisa pakai
+-- semua menu bot (full akses, sama seperti owner) — TAPI cuma owner yang dapat
+-- menu/info tambahan khusus (lihat is_owner di api/telegram-webhook.js).
+-- Dikelola dari menu "👑 Owner Panel" di bot (cuma owner yang bisa tambah/hapus).
+create table if not exists bot_users (
+  id uuid primary key default gen_random_uuid(),
+  chat_id text not null unique,
+  display_name text default '',
+  added_at timestamptz not null default now()
+);
+
 -- ============ RLS ============
 -- Dimatikan: semua akses lewat serverless function (service_role key),
 -- tidak ada akses langsung dari browser ke Supabase.
 alter table uploaded_files disable row level security;
 alter table creator_rows disable row level security;
 alter table exclusive_creators disable row level security;
+alter table bot_users disable row level security;

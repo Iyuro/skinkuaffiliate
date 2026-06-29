@@ -2,7 +2,7 @@
 function toggleAddForm(){const f=document.getElementById('addForm');f.style.display=f.style.display==='none'?'block':'none';if(f.style.display==='block')clearForm();}
 function clearForm(){['ef-username','ef-nama','ef-komisi','ef-followers','ef-notes','ef-edit-id'].forEach(id=>document.getElementById(id).value='');document.getElementById('ef-tipe').value='vip';document.getElementById('ef-platform').value='tiktok';document.getElementById('ef-tanggal').value='';document.getElementById('ef-expire').value='';efTags=[];renderEfTags();}
 function addProdukTag(e){if(e.key!=='Enter')return;e.preventDefault();const val=e.target.value.trim();if(val&&!efTags.includes(val)){efTags.push(val);renderEfTags();}e.target.value='';}
-function renderEfTags(){document.getElementById('ef-produk-tags').innerHTML=efTags.map((t,i)=>`<span class="tag">${t} <span class="tag-del" onclick="efTags.splice(${i},1);renderEfTags()">${appIcon('close','sm')}</span></span>`).join('');}
+function renderEfTags(){document.getElementById('ef-produk-tags').innerHTML=efTags.map((t,i)=>`<span class="tag">${t} <span class="tag-del" onclick="efTags.splice(${i},1);renderEfTags()">✕</span></span>`).join('');}
 async function saveExclusive(){
   const username=document.getElementById('ef-username').value.trim().replace('@','');
   if(!username){toast('Username wajib diisi','error');return;}
@@ -20,7 +20,7 @@ async function saveExclusive(){
   }catch(err){
     toast('Gagal simpan: '+err.message,'error');
   }finally{
-    if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML=`${appIcon('upload','sm')} Simpan`;}
+    if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML='💾 Simpan';}
   }
 }
 function editExclusive(id){
@@ -51,20 +51,20 @@ function renderExclusiveList(){
   const el=document.getElementById('exclusiveList'),empty=document.getElementById('exclusiveEmpty');
   if(!exclusiveData.length){el.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
-  const tb={vip:'<span class="badge b-vip">VIP</span>',contract:'<span class="badge b-contract">Kontrak</span>',both:'<span class="badge b-vip">VIP</span><span class="badge b-contract" style="margin-left:4px">Kontrak</span>'};
-  const pi={tiktok:appIcon('creator','sm'),instagram:appIcon('creator','sm'),youtube:appIcon('ai','sm'),multi:appIcon('dashboard','sm')};
+  const tb={vip:'<span class="badge b-vip">⭐ VIP</span>',contract:'<span class="badge b-contract">📝 Kontrak</span>',both:'<span class="badge b-vip">⭐ VIP</span><span class="badge b-contract" style="margin-left:4px">📝 Kontrak</span>'};
+  const pi={tiktok:'🎵',instagram:'📸',youtube:'▶️',multi:'🌐'};
   el.innerHTML=exclusiveData.map(item=>{
     const isExp=item.expire&&new Date(item.expire)<new Date();
     const expSoon=item.expire&&!isExp&&(new Date(item.expire)-new Date())<7*24*60*60*1000;
     const nameLink=renderCreatorLink(item.username,{extraClass:'excl-name-link'});
     return `<div class="excl-card">
       <div class="excl-header">
-        <h3>${pi[item.platform]||appIcon('creator','sm')} ${nameLink} ${item.nama?`<span style="font-weight:400;color:var(--text3);font-size:12px">${item.nama}</span>`:''}</h3>
+        <h3>${pi[item.platform]||'🎵'} ${nameLink} ${item.nama?`<span style="font-weight:400;color:var(--text3);font-size:12px">${item.nama}</span>`:''}</h3>
         <div style="display:flex;gap:6px;align-items:center">
           ${tb[item.tipe]||''}
           ${isExp?'<span class="badge b-boncos">Expired</span>':expSoon?'<span class="badge b-breakeven">Expire Soon</span>':''}
-          <button class="btn btn-ghost btn-sm" onclick="editExclusive('${item.id}')">${appIcon('settings','sm')}</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteExclusive('${item.id}')">${appIcon('close','sm')}</button>
+          <button class="btn btn-ghost btn-sm" onclick="editExclusive('${item.id}')">✏️</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteExclusive('${item.id}')">🗑</button>
         </div>
       </div>
       <div style="padding:14px 16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;font-size:13px">

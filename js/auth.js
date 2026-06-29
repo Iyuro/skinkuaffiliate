@@ -1,13 +1,6 @@
 // ============ AUTH ============
-function isPublicRankRoute(){
-  const params = new URLSearchParams(window.location.search);
-  return params.get('rank') === '1' || params.get('view') === 'public-rank' || params.get('public') === 'rank';
-}
-
 function checkAuth(){
-  if(isPublicRankRoute()){
-    showPublicRankPage();
-  } else if(authToken){ showApp(); } else { document.getElementById('loginScreen').style.display='flex'; }
+  if(authToken){ showApp(); } else { document.getElementById('loginScreen').style.display='flex'; }
 }
 
 async function requestOTP(){
@@ -16,7 +9,7 @@ async function requestOTP(){
   btn.innerHTML='<span class="spinner"></span>Mengirim...';
   document.getElementById('step1Err').textContent='';
   try{
-    const res=await fetch('/api/router?op=send-otp',{method:'POST',headers:{'Content-Type':'application/json'}});
+    const res=await fetch('/api/send-otp',{method:'POST',headers:{'Content-Type':'application/json'}});
     const data=await res.json();
     if(!res.ok) throw new Error(data.error||'Gagal kirim OTP');
     otpToken=data.token;
@@ -26,7 +19,7 @@ async function requestOTP(){
   }catch(err){
     document.getElementById('step1Err').textContent=err.message;
     btn.disabled=false;
-    btn.innerHTML=`${appIcon('send','sm')} Kirim OTP ke Telegram`;
+    btn.innerHTML='<span class="btn-icon">📨</span> Kirim OTP ke Telegram';
   }
 }
 
@@ -47,7 +40,7 @@ function backToStep1(){
   showStep('step1');
   const btn=document.getElementById('otpRequestBtn');
   btn.disabled=false;
-  btn.innerHTML=`${appIcon('send','sm')} Kirim OTP ke Telegram`;
+  btn.innerHTML='<span class="btn-icon">📨</span> Kirim OTP ke Telegram';
   requestOTP();
 }
 
@@ -80,7 +73,7 @@ async function verifyOTP(){
   btn.innerHTML='<span class="spinner"></span>Memverifikasi...';
   document.getElementById('step2Err').textContent='';
   try{
-    const res=await fetch('/api/router?op=verify-otp',{
+    const res=await fetch('/api/verify-otp',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({token:otpToken,otp})
     });
@@ -93,7 +86,7 @@ async function verifyOTP(){
   }catch(err){
     document.getElementById('step2Err').textContent=err.message;
     btn.disabled=false;
-    btn.innerHTML=`${appIcon('check','sm')} Verifikasi`;
+    btn.innerHTML='<span class="btn-icon">✅</span> Verifikasi';
   }
 }
 
@@ -104,38 +97,12 @@ async function showApp(){
   showSyncStatus(true);
   await loadAllDataFromServer();
   showSyncStatus(false);
-  handleDeepLink();
-}
-
-function handleDeepLink(){
-  const params=new URLSearchParams(window.location.search);
-  if(params.get('rank') === '1' || params.get('view') === 'public-rank' || params.get('public') === 'rank'){ showPublicRankPage(); }
-  else { switchView('rank'); }
-}
-
-function showPublicRankPage(){
-  document.getElementById('loginScreen').style.display='none';
-  const appLayout=document.getElementById('appLayout');
-  if(appLayout) appLayout.style.display='none';
-  const publicShell=document.getElementById('publicRankShell');
-  if(publicShell) publicShell.style.display='flex';
-  loadPublicRankPage();
-}
-
-async function loadPublicRankPage(){
-  try {
-    const res = await apiGetPublicRank();
-    const data = (res.data || []).map(r => ({ ...r, name: (r.name || '').toString().trim() })).filter(r => r.name);
-    renderPublicRank(data);
-  } catch (err) {
-    document.getElementById('publicRankBody').innerHTML = `<div class="empty-state" style="padding:24px">Gagal memuat rank publik: ${err.message}</div>`;
-  }
 }
 
 function showSyncStatus(loading){
   const el=document.getElementById('dataInfo');
   if(!el)return;
-  if(loading)el.innerHTML=`${appIcon('clock','sm')} Memuat data tersimpan...`;
+  if(loading)el.textContent='⏳ Memuat data tersimpan...';
 }
 
 function logout(){

@@ -6,7 +6,6 @@ function renderKreatorTable(){
   document.getElementById('kreatorEmpty').style.display='none';document.getElementById('kreatorContent').style.display='block';
   const q=document.getElementById('searchInput').value.toLowerCase(),sortVal=document.getElementById('sortSelect').value;
   const cv=r=>r.sampelTerkirim>0?r.videoSampel/r.sampelTerkirim:-1;
-  const filterVal=document.getElementById('filterSelect')?document.getElementById('filterSelect').value:'all';
   let data=allData.filter(r=>{
     if(q&&!r.name.toLowerCase().includes(q))return false;
     const st=getStatus(r);
@@ -15,9 +14,6 @@ function renderKreatorTable(){
     if(currentTab==='potential')return st==='potential';
     if(currentTab==='pending')return st==='pending';
     if(currentTab==='organic')return st==='potential'&&r.sampelTerkirim===0;
-    if(filterVal==='favorites'){
-      return (window.favorites||[]).includes(r.name);
-    }
     return true;
   });
   data.sort((a,b)=>{
@@ -45,10 +41,8 @@ function renderKreatorTable(){
     const bc2=st==='boncos'?'#ef4444':st==='perform'?'#22c55e':st==='potential'?'#6366f1':'#333';
     const rc=r.roi45>=settings.roiPerform?'var(--green)':r.roi45>=1?'var(--amber)':r.roi45>0?'var(--red)':'var(--text3)';
     const isGhost=r.sampelTerkirim>0&&r.videoSampel===0&&r.gmv===0;
-    const isFav=(window.favorites||[]).includes(r.name);
-    const favBtn=`<button class="btn" style="padding:6px;border-radius:8px;margin-right:8px" onclick="toggleFavorite('${r.name.replace(/'/g,"\\'")}')">${isFav?appIcon('medal','sm'):appIcon('medal','sm')}</button>`;
     return `<tr class="${isGhost?'ghost-row':''}">
-      <td>${favBtn}${renderCreatorLink(r.name)}</td>
+      <td>${renderCreatorLink(r.name)}</td>
       <td><span class="badge ${bc}">${bl}</span></td>
       <td style="text-align:center">${r.sampelDiminta>0?`<b>${r.sampelDiminta}</b>`:'<span style="color:var(--text3)">0</span>'}</td>
       <td style="text-align:center">${r.sampelTerkirim>0?`<b>${r.sampelTerkirim}</b>`:'<span style="color:var(--text3)">0</span>'}</td>
