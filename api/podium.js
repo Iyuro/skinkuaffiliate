@@ -34,18 +34,21 @@ module.exports = async function handler(req, res) {
     }));
     const allData = mergeRows(appRows);
 
-    const topGmv = [...allData].sort((a, b) => b.gmv - a.gmv).slice(0, 3)
-      .map(r => ({ username: censorUsername(r.name), gmv: r.gmv, gmvFormatted: fmtRp(r.gmv), video: r.videoSampel }));
+    const allSorted_gmv = [...allData].sort((a, b) => b.gmv - a.gmv)
+      .map((r, i) => ({ rank: i+1, username: censorUsername(r.name), gmv: r.gmv, gmvFormatted: fmtRp(r.gmv), video: r.videoSampel, sampelTerkirim: r.sampelTerkirim }));
 
-    const topVideo = [...allData].sort((a, b) => b.videoSampel - a.videoSampel).slice(0, 3)
-      .map(r => ({ username: censorUsername(r.name), video: r.videoSampel, gmv: r.gmv, gmvFormatted: fmtRp(r.gmv) }));
+    const allSorted_video = [...allData].sort((a, b) => b.videoSampel - a.videoSampel)
+      .map((r, i) => ({ rank: i+1, username: censorUsername(r.name), video: r.videoSampel, gmv: r.gmv, gmvFormatted: fmtRp(r.gmv), sampelTerkirim: r.sampelTerkirim }));
 
-    // Cache 60 detik di edge/browser — podium publik tidak perlu real-time strict,
-    // dan ini mengurangi beban Supabase kalau halaman ini ramai dibuka/dibagikan.
+    const topGmv = allSorted_gmv.slice(0, 3);
+    const topVideo = allSorted_video.slice(0, 3);
+
     res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=60, stale-while-revalidate=120');
 
     return res.status(200).json({
       topGmv, topVideo,
+      allGmv: allSorted_gmv,
+      allVideo: allSorted_video,
       totalCreators: allData.length,
       updatedAt: new Date().toISOString()
     });
