@@ -203,6 +203,8 @@ Beberapa pengamanan tambahan yang sudah diterapkan:
 - `Referrer-Policy` — kurangi informasi yang bocor ke situs lain saat ada link keluar
 - `Permissions-Policy` — matikan akses kamera/mikrofon/lokasi yang memang tidak dipakai
 
+> ⚠️ **Kalau mengedit `vercel.json` (termasuk lewat AI Update Website):** pattern `source` di `headers`/`rewrites` HARUS pakai syntax [path-to-regexp](https://github.com/pillarjs/path-to-regexp/tree/v6.1.0), bukan regex JavaScript biasa. Yang paling sering salah: negative lookahead `(?!...)` **wajib** dibungkus dalam group tambahan, contoh `(?!podium)` harus ditulis `((?!podium).*)`, bukan `(?!podium)(.*)`. Kalau salah, deployment akan gagal total dengan error "Invalid route source pattern" — ini pernah terjadi di project ini dan sudah diperbaiki, jadi kalau menambah pattern baru, ikuti contoh yang sudah ada di file ini.
+
 **Apa yang TIDAK termasuk (penting buat dipahami):**
 - Ini bukan "anti-hacker" dalam arti mutlak kebal segala jenis serangan — tidak ada sistem yang benar-benar kebal. Ini adalah lapisan-lapisan pertahanan konkret untuk celah yang paling realistis terjadi pada aplikasi seperti ini (brute-force OTP, spam endpoint, payload raksasa, clickjacking)
 - Kalau Vercel/Supabase/Telegram sendiri kena masalah keamanan di sisi mereka, itu di luar kendali kode ini
@@ -327,6 +329,11 @@ AI akan generate kode → ada tombol "⬇ Download kode" → tinggal lihat kode-
 ---
 
 ## TROUBLESHOOTING
+
+**Semua deployment gagal / "All checks have failed" di GitHub / error "Invalid route source pattern":**
+- Ini soal syntax di `vercel.json`, bukan soal kode JS. Buka file itu dan cek bagian `headers` atau `rewrites` — pastikan tidak ada pattern regex yang salah syntax (lihat catatan di bagian "🆕 KEAMANAN → Security headers" di atas)
+- Klik **Details** pada salah satu deployment yang gagal di GitHub (atau buka **Vercel Dashboard → Deployments → klik yang gagal**) untuk baca pesan error sebenarnya — biasanya sangat spesifik dan ada link dokumentasinya
+- Setelah `vercel.json` diperbaiki, push lagi (atau klik "Redeploy" di Vercel) — semua project yang terhubung ke repo yang sama akan otomatis coba deploy ulang
 
 **OTP tidak terkirim / "OTP_SECRET belum diset":**
 - Ini wajib diset sekarang — buka Vercel → Environment Variables → tambah `OTP_SECRET` (string random apapun, minimal 32 karakter) → **Redeploy**
