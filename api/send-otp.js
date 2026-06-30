@@ -20,11 +20,11 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-  const CHAT_ID   = process.env.TELEGRAM_CHAT_ID;
+  const CHAT_ID   = process.env.TELEGRAM_GROUP_CHAT_ID;
   const SECRET    = process.env.OTP_SECRET;
 
   if (!BOT_TOKEN || !CHAT_ID) {
-    return res.status(500).json({ error: 'TELEGRAM_BOT_TOKEN atau TELEGRAM_CHAT_ID belum diset di Vercel' });
+    return res.status(500).json({ error: 'TELEGRAM_BOT_TOKEN atau TELEGRAM_GROUP_CHAT_ID belum diset di Vercel. TELEGRAM_GROUP_CHAT_ID harus diisi Chat ID grup (biasanya diawali angka negatif, mis. -1001234567890), bukan Chat ID personal.' });
   }
   if (!SECRET) {
     // Sengaja TIDAK ada fallback default — secret hardcode di kode adalah lubang keamanan.

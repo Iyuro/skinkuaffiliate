@@ -1,6 +1,7 @@
 const { getSupabase } = require('./_supabase');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
 const TG_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 const OTP_EXPIRE_MS = 5 * 60 * 1000;
 
@@ -33,16 +34,11 @@ module.exports = async function handler(req, res) {
   if (!BOT_TOKEN) {
     return res.status(500).json({ ok: false, error: 'TELEGRAM_BOT_TOKEN belum diset' });
   }
+  if (!GROUP_CHAT_ID) {
+    return res.status(500).json({ ok: false, error: 'TELEGRAM_GROUP_CHAT_ID belum diset. Lihat panduan ambil Chat ID grup di dokumentasi.' });
+  }
 
   const supabase = getSupabase();
-  const { data: subscribers, error } = await supabase.from('telegram_subscribers').select('chat_id, username').eq('subscribed', true);
-  if (error) {
-    console.error('send-otp supabase error', error);
-    return res.status(500).json({ ok: false, error: 'Gagal ambil subscriber Telegram. Pastikan tabel telegram_subscribers sudah ada dan Supabase service key benar.' });
-  }
-  if (!subscribers || !subscribers.length) {
-    return res.status(400).json({ ok: false, error: 'Belum ada subscriber Telegram terdaftar. Kirim /start dulu ke bot.' });
-  }
 
   const code = generateOtp();
   const expiresAt = new Date(Date.now() + OTP_EXPIRE_MS).toISOString();
@@ -58,18 +54,16 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ ok: false, error: 'Gagal simpan OTP' });
   }
 
-  const sendPromises = subscribers.map(sub => {
-    const mention = sub.username ? `@${sub.username}` : `chat ${sub.chat_id}`;
-    return sendMessage(sub.chat_id, `Kode OTP login Affiliate Analyzer:
+  try {
+    await sendMessage(GROUP_CHAT_ID, `Kode OTP login Affiliate Analyzer:
 
 *${code}*
 
-Masukkan kode ini di website dalam 5 menit.`)
-      .catch(err => {
-        console.error('send-otp tg error', sub.chat_id, err);
-      });
-  });
+Masukkan kode ini di website dalam 5 menit.`);
+  } catch (err) {
+    console.error('send-otp tg error', GROUP_CHAT_ID, err);
+    return res.status(500).json({ ok: false, error: 'Gagal kirim OTP ke grup Telegram' });
+  }
 
-  await Promise.all(sendPromises);
   return res.status(200).json({ ok: true, token: Buffer.from(JSON.stringify({ issued_at: new Date().toISOString() })).toString('base64') });
 };

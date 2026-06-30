@@ -1,7 +1,7 @@
 // api/cron-daily-summary.js
 // Dipanggil otomatis oleh Vercel Cron tiap jam 9 pagi WIB (02:00 UTC) — lihat
 // schedule di vercel.json. Kirim ringkasan + alert (ghost kreator, kontrak expire)
-// ke SEMUA orang yang punya akses (owner + whitelist di tabel bot_users).
+// ke GRUP Telegram (TELEGRAM_GROUP_CHAT_ID di env var).
 //
 // Vercel Cron memanggil endpoint ini dengan header Authorization: Bearer <CRON_SECRET>
 // (otomatis ditambahkan Vercel kalau env var CRON_SECRET diset) — ini mencegah orang
@@ -11,7 +11,7 @@ const { getSupabase } = require('./_supabase');
 const { getStatus, isGhost, mergeRows, fmtRp } = require('./_creator-logic');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const OWNER_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
 const CRON_SECRET = process.env.CRON_SECRET;
 const TG_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
@@ -21,14 +21,6 @@ function sendMessage(chatId, text) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' })
   }).then(r => r.json());
-}
-
-async function getAllRecipients() {
-  const supabase = getSupabase();
-  const { data, error } = await supabase.from('bot_users').select('chat_id');
-  if (error) throw new Error(error.message);
-  const whitelisted = (data || []).map(u => u.chat_id);
-  return [String(OWNER_CHAT_ID), ...whitelisted.filter(id => String(id) !== String(OWNER_CHAT_ID))];
 }
 
 async function buildDailyText() {
@@ -91,20 +83,17 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  if (!BOT_TOKEN || !OWNER_CHAT_ID) {
-    return res.status(500).json({ error: 'TELEGRAM_BOT_TOKEN/CHAT_ID belum diset' });
+  if (!BOT_TOKEN || !GROUP_CHAT_ID) {
+    return res.status(500).json({ error: 'TELEGRAM_BOT_TOKEN/TELEGRAM_GROUP_CHAT_ID belum diset' });
   }
 
   try {
     const text = await buildDailyText();
     if (!text) return res.status(200).json({ skipped: true, reason: 'Belum ada data' });
 
-    const recipients = await getAllRecipients();
-    const results = await Promise.allSettled(recipients.map(chatId => sendMessage(chatId, text)));
-    const sent = results.filter(r => r.status === 'fulfilled').length;
-    const failed = results.length - sent;
+    await sendMessage(GROUP_CHAT_ID, text);
 
-    return res.status(200).json({ success: true, sentTo: sent, failed });
+    return res.status(200).json({ success: true, sentTo: 1 });
   } catch (err) {
     console.error('Cron daily summary error:', err);
     return res.status(500).json({ error: err.message });
