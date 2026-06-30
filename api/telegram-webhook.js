@@ -2,10 +2,11 @@
 // Webhook bot Telegram 2-arah: orang ketik /start atau pesan apapun → bot kasih menu
 // inline button → klik button → bot query Supabase → balas data terformat.
 //
-// AKSES: owner (TELEGRAM_CHAT_ID di env var) + siapapun yang ada di tabel bot_users
-// (whitelist, dikelola owner lewat menu "👑 Owner Panel") dapat akses FULL ke semua
-// menu data. Bedanya cuma owner yang melihat menu "👑 Owner Panel" itu sendiri.
-// Chat ID yang TIDAK ada di keduanya akan diam-diam di-ignore.
+// AKSES: grup Telegram (TELEGRAM_GROUP_CHAT_ID di env var) dapat akses FULL ke semua
+// menu data TERMASUK "👑 Owner Panel" — semua anggota grup diperlakukan sebagai owner.
+// Owner personal (TELEGRAM_CHAT_ID, kalau masih diisi) + siapapun di tabel bot_users
+// tetap diizinkan juga untuk kompatibilitas mundur.
+// Chat ID yang TIDAK ada di salah satu dari itu akan diam-diam di-ignore.
 //
 // Setup sekali: daftarkan URL endpoint ini ke Telegram lewat setWebhook (lihat api/setup-webhook.js).
 
@@ -13,7 +14,8 @@ const { getSupabase } = require('./_supabase');
 const { getStatus, isGhost, mergeRows, fmtRp } = require('./_creator-logic');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const OWNER_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const OWNER_CHAT_ID = process.env.TELEGRAM_CHAT_ID; // opsional, kompatibilitas mundur
+const GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
 const SITE_URL = process.env.SITE_URL; // contoh: https://affiliate-skinku.vercel.app — dipakai buat tombol "🌐 Buka Dashboard"
 const TG_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
@@ -75,6 +77,7 @@ async function getBotUsers() {
 
 async function isAuthorized(chatId) {
   if (String(chatId) === String(OWNER_CHAT_ID)) return true;
+  if (GROUP_CHAT_ID && String(chatId) === String(GROUP_CHAT_ID)) return true;
   try {
     const users = await getBotUsers();
     return users.some(u => String(u.chat_id) === String(chatId));
@@ -197,10 +200,14 @@ async function buildOwnerPanel(ctx) {
 async function buildOwnerList(ctx) {
   if (!ctx.isOwner) return { text: '🚫 Menu ini cuma buat owner.', keyboard: BACK_KEYBOARD };
   const users = await getBotUsers();
-  const ownerLine = `👑 \`${OWNER_CHAT_ID}\` — Owner (lo)`;
-  if (!users.length) return { text: `👥 *Daftar User Bot*\n\n${ownerLine}\n\n_Belum ada user lain yang ditambahkan._`, keyboard: OWNER_PANEL_KEYBOARD };
+  const ownerLine = OWNER_CHAT_ID
+    ? `👑 \`${OWNER_CHAT_ID}\` — Owner personal`
+    : null;
+  const groupLine = GROUP_CHAT_ID ? `👥 \`${GROUP_CHAT_ID}\` — Grup (semua anggota = owner)` : null;
+  const headerLines = [ownerLine, groupLine].filter(Boolean).join('\n');
+  if (!users.length) return { text: `👥 *Daftar User Bot*\n\n${headerLines}\n\n_Belum ada user tambahan di whitelist._`, keyboard: OWNER_PANEL_KEYBOARD };
   const lines = users.map(u => `• \`${u.chat_id}\`${u.display_name ? ' — ' + u.display_name : ''}`);
-  return { text: `👥 *Daftar User Bot* (${users.length + 1})\n\n${ownerLine}\n${lines.join('\n')}`, keyboard: OWNER_PANEL_KEYBOARD };
+  return { text: `👥 *Daftar User Bot* (${users.length + 1})\n\n${headerLines}\n${lines.join('\n')}`, keyboard: OWNER_PANEL_KEYBOARD };
 }
 
 const ROUTES = {
@@ -242,8 +249,8 @@ async function handleOwnerCommand(text, ctx) {
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(200).json({ ok: true }); // Telegram cuma POST, GET buat cek hidup aja
 
-  if (!BOT_TOKEN || !OWNER_CHAT_ID) {
-    console.error('TELEGRAM_BOT_TOKEN/CHAT_ID belum diset');
+  if (!BOT_TOKEN || (!OWNER_CHAT_ID && !GROUP_CHAT_ID)) {
+    console.error('TELEGRAM_BOT_TOKEN belum diset, atau TELEGRAM_CHAT_ID/TELEGRAM_GROUP_CHAT_ID keduanya kosong');
     return res.status(200).json({ ok: true }); // tetap 200 ke Telegram supaya tidak retry terus
   }
 
@@ -256,7 +263,7 @@ module.exports = async function handler(req, res) {
     if (!authorized) {
       return res.status(200).json({ ok: true }); // diam-diam ignore, jangan kasih tahu apapun ke pengirim asing
     }
-    const ctx = { isOwner: String(incomingChatId) === String(OWNER_CHAT_ID) };
+    const ctx = { isOwner: String(incomingChatId) === String(OWNER_CHAT_ID) || (GROUP_CHAT_ID && String(incomingChatId) === String(GROUP_CHAT_ID)) };
 
     // ---------- Klik inline button ----------
     if (update.callback_query) {
