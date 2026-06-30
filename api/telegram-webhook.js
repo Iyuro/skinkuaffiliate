@@ -97,7 +97,7 @@ function buildMenuKeyboard() {
   ];
 
   const actionRow = [{ text: '📤 Push File', callback_data: 'push_file_info' }];
-  if (SITE_URL) actionRow.push({ text: '🌐 Buka Dashboard', web_app: { url: SITE_URL } });
+  if (SITE_URL) actionRow.push({ text: '🌐 Buka Dashboard', url: SITE_URL });
   rows.push(actionRow);
 
   rows.push([{ text: '🔄 Refresh', callback_data: 'menu' }]);
@@ -105,7 +105,7 @@ function buildMenuKeyboard() {
   return rows;
 }
 const BACK_KEYBOARD = SITE_URL
-  ? [[{ text: '🌐 Buka Dashboard', web_app: { url: SITE_URL } }], [{ text: '« Menu Utama', callback_data: 'menu' }]]
+  ? [[{ text: '🌐 Buka Dashboard', url: SITE_URL }], [{ text: '« Menu Utama', callback_data: 'menu' }]]
   : [[{ text: '« Menu Utama', callback_data: 'menu' }]];
 
 // ---------- Akses ----------
