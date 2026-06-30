@@ -16,6 +16,11 @@
 // Setup sekali: daftarkan URL endpoint ini ke Telegram lewat setWebhook (lihat api/setup-webhook.js).
 // Perlu tabel tambahan di Supabase, lihat supabase/schema-bot-messages.sql.
 
+// CATATAN MINI APP: tombol "Buka Dashboard" pakai web_app (Telegram Mini App), bukan
+// url biasa, jadi dashboard kebuka LANGSUNG di dalam Telegram (tidak pindah ke browser).
+// Syarat dari Telegram: SITE_URL wajib HTTPS valid (otomatis terpenuhi kalau di-host di
+// Vercel). Mini App tetap butuh login OTP seperti biasa -- OTP-nya tetap masuk ke grup ini.
+
 const { getSupabase } = require('./_supabase');
 const { getStatus, isGhost, mergeRows, fmtRp } = require('./_creator-logic');
 const { parseFileBuffer } = require('./_file-parser');
@@ -80,20 +85,27 @@ async function clearTrackedMessages(chatId) {
 }
 
 // ---------- Keyboard ----------
+// Layout dikelompokkan biar lebih rapi:
+//   1. Data & insight (ringkasan, perform, ghost, rekomen, expire) -> grup utama
+//   2. Aksi (push file, buka dashboard sebagai Mini App) -> grup kedua
+//   3. Utilitas (refresh, delete all chat) -> grup terakhir, dipisah biar tidak kepencet salah
 function buildMenuKeyboard() {
   const rows = [
     [{ text: '📊 Ringkasan Hari Ini', callback_data: 'summary' }],
     [{ text: '🔥 Top Perform', callback_data: 'perform' }, { text: '👻 Ghost Kreator', callback_data: 'ghost' }],
-    [{ text: '🔵 Rekomendasi Sampel', callback_data: 'rekomen' }, { text: '⏰ Kontrak Expire', callback_data: 'expiring' }],
-    [{ text: '📤 Push File', callback_data: 'push_file_info' }]
+    [{ text: '🔵 Rekomendasi Sampel', callback_data: 'rekomen' }, { text: '⏰ Kontrak Expire', callback_data: 'expiring' }]
   ];
-  if (SITE_URL) rows.push([{ text: '🌐 Buka Dashboard', url: SITE_URL }]);
+
+  const actionRow = [{ text: '📤 Push File', callback_data: 'push_file_info' }];
+  if (SITE_URL) actionRow.push({ text: '🌐 Buka Dashboard', web_app: { url: SITE_URL } });
+  rows.push(actionRow);
+
   rows.push([{ text: '🔄 Refresh', callback_data: 'menu' }]);
   rows.push([{ text: '🗑 Delete All Chat', callback_data: 'delete_all_confirm' }]);
   return rows;
 }
 const BACK_KEYBOARD = SITE_URL
-  ? [[{ text: '🌐 Buka Dashboard', url: SITE_URL }], [{ text: '« Menu Utama', callback_data: 'menu' }]]
+  ? [[{ text: '🌐 Buka Dashboard', web_app: { url: SITE_URL } }], [{ text: '« Menu Utama', callback_data: 'menu' }]]
   : [[{ text: '« Menu Utama', callback_data: 'menu' }]];
 
 // ---------- Akses ----------
