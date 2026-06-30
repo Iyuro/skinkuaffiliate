@@ -1,18 +1,25 @@
 // ============ GRAFIK (Chart.js) ============
-// 3 grafik di Dashboard:
-// 1. Bar chart Top 10 GMV per kreator
-// 2. Bar chart Sampel Diminta vs Terkirim vs Video per kreator (top 10 by sampel terkirim)
-// 3. Line chart trend per file upload (GMV, Video, Sampel Diminta dari waktu ke waktu)
-//
-// Data buat chart #3 diambil dari `rawRows` (creator_rows mentah per file upload, lihat
-// js/state.js & js/api-client.js), supaya "traffic" tiap file/waktu kelihatan bedanya —
-// bukan dari `allData` yang sudah di-merge jadi satu angka final per kreator.
+// 4 grafik di Dashboard, fokus ke actionable insight (bukan cuma ranking mentah):
+// 1. Donut distribusi status kreator (Perform/Break-even/Boncos/Potensi/Belum Posting/dst)
+// 2. Funnel konversi: Sampel Terkirim -> Posting Video -> Closing GMV
+// 3. Histogram distribusi ROI 45 hari (berapa kreator di tiap rentang ROI)
+// 4. Bar horizontal Top 10 ROI tertinggi (kreator paling efisien, bukan cuma GMV terbesar)
 
-let chartInstances = { gmv: null, sampleVsVideo: null, trend: null };
+let chartInstances = { statusDist:null, funnel:null, roiDist:null, topRoi:null };
 
 const CHART_COLORS = {
   accent: '#818cf8', accent2: '#6366f1', green: '#22c55e', amber: '#f59e0b',
-  red: '#ef4444', purple: '#a855f7', text2: '#9090aa', grid: 'rgba(255,255,255,0.06)'
+  red: '#ef4444', purple: '#a855f7', pink:'#ec4899', text2: '#9090aa', grid: 'rgba(255,255,255,0.06)'
+};
+
+const STATUS_META = {
+  perform:    { label:'🔥 Perform',      color: CHART_COLORS.green  },
+  breakeven:  { label:'🔄 Break-even',   color: CHART_COLORS.amber  },
+  boncos:     { label:'❌ Boncos',       color: CHART_COLORS.red    },
+  potential:  { label:'🔵 Potensi',      color: CHART_COLORS.accent },
+  pending:    { label:'⏳ Belum Posting',color: CHART_COLORS.purple },
+  requested:  { label:'📋 Minta Sampel', color: CHART_COLORS.pink   },
+  nodata:     { label:'⏸ Tidak Ada Data',color: CHART_COLORS.text2 }
 };
 
 function destroyChart(key){
@@ -32,107 +39,132 @@ function baseChartOptions(extra){
 
 function renderCharts(){
   if(typeof Chart==='undefined')return; // CDN belum kelar load, skip diam-diam
-  renderGmvChart();
-  renderSampleVsVideoChart();
-  renderTrendChart();
+  renderStatusDistChart();
+  renderFunnelChart();
+  renderRoiDistChart();
+  renderTopRoiChart();
 }
 
-// ---------- Chart 1: Top 10 GMV per kreator ----------
-function renderGmvChart(){
-  const canvas=document.getElementById('chartGmvPerCreator');
+// ---------- Chart 1: Distribusi status kreator (donut) ----------
+function renderStatusDistChart(){
+  const canvas=document.getElementById('chartStatusDist');
   if(!canvas)return;
-  destroyChart('gmv');
-  const top=[...allData].sort((a,b)=>b.gmv-a.gmv).slice(0,10);
-  if(!top.length)return;
-  const ctx=canvas.getContext('2d');
-  chartInstances.gmv=new Chart(ctx,{
-    type:'bar',
-    data:{
-      labels:top.map(r=>'@'+r.name),
-      datasets:[{ label:'GMV', data:top.map(r=>r.gmv), backgroundColor:CHART_COLORS.accent, borderRadius:5, maxBarThickness:28 }]
-    },
-    options:baseChartOptions({
-      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>fmtRp(ctx.parsed.y) } } },
-      scales:{ x:{ ticks:{ color:CHART_COLORS.text2, font:{size:10}, maxRotation:45, minRotation:45 }, grid:{display:false} },
-               y:{ ticks:{ color:CHART_COLORS.text2, font:{size:10}, callback:v=>fmtRp(v) }, grid:{ color:CHART_COLORS.grid }, beginAtZero:true } }
-    })
-  });
-}
+  destroyChart('statusDist');
+  if(!allData.length)return;
 
-// ---------- Chart 2: Sampel Diminta vs Terkirim vs Video, top 10 by sampel terkirim ----------
-function renderSampleVsVideoChart(){
-  const canvas=document.getElementById('chartSampleVsVideo');
-  if(!canvas)return;
-  destroyChart('sampleVsVideo');
-  const top=[...allData].filter(r=>r.sampelTerkirim>0||r.sampelDiminta>0).sort((a,b)=>b.sampelTerkirim-a.sampelTerkirim).slice(0,10);
-  if(!top.length)return;
-  const ctx=canvas.getContext('2d');
-  chartInstances.sampleVsVideo=new Chart(ctx,{
-    type:'bar',
-    data:{
-      labels:top.map(r=>'@'+r.name),
-      datasets:[
-        { label:'Diminta', data:top.map(r=>r.sampelDiminta), backgroundColor:CHART_COLORS.amber, borderRadius:4, maxBarThickness:18 },
-        { label:'Terkirim', data:top.map(r=>r.sampelTerkirim), backgroundColor:CHART_COLORS.accent2, borderRadius:4, maxBarThickness:18 },
-        { label:'Video', data:top.map(r=>r.videoSampel), backgroundColor:CHART_COLORS.green, borderRadius:4, maxBarThickness:18 }
-      ]
-    },
-    options:baseChartOptions({
-      scales:{ x:{ ticks:{ color:CHART_COLORS.text2, font:{size:10}, maxRotation:45, minRotation:45 }, grid:{display:false} },
-               y:{ ticks:{ color:CHART_COLORS.text2, font:{size:10} }, grid:{ color:CHART_COLORS.grid }, beginAtZero:true } }
-    })
-  });
-}
-
-// ---------- Chart 3: Trend per file upload (urut waktu) ----------
-// Agregat semua creator_rows per file_id, diurutkan by uploaded_at — jadi kelihatan
-// "traffic" total (GMV/Video/Sampel) naik-turun dari upload ke upload (dari waktu ke waktu).
-function renderTrendChart(){
-  const canvas=document.getElementById('chartTrend');
-  const emptyEl=document.getElementById('chartTrendEmpty');
-  if(!canvas)return;
-  destroyChart('trend');
-
-  const byFile={};
-  rawRows.forEach(r=>{
-    if(!r.file_id)return;
-    if(!byFile[r.file_id])byFile[r.file_id]={gmv:0,video:0,sampelDiminta:0,sampelTerkirim:0};
-    byFile[r.file_id].gmv+=r.gmv||0;
-    byFile[r.file_id].video+=r.videoSampel||0;
-    byFile[r.file_id].sampelDiminta+=r.sampelDiminta||0;
-    byFile[r.file_id].sampelTerkirim+=r.sampelTerkirim||0;
-  });
-  const points=loadedFiles
-    .filter(f=>byFile[f.id])
-    .map(f=>({ label:f.name.length>16?f.name.slice(0,14)+'…':f.name, uploadedAt:f.uploadedAt, ...byFile[f.id] }))
-    .sort((a,b)=>new Date(a.uploadedAt)-new Date(b.uploadedAt));
-
-  if(points.length<2){
-    canvas.style.display='none';
-    if(emptyEl)emptyEl.style.display='block';
-    return;
-  }
-  canvas.style.display='block';
-  if(emptyEl)emptyEl.style.display='none';
+  const counts={};
+  allData.forEach(r=>{ const s=getStatus(r); counts[s]=(counts[s]||0)+1; });
+  const keys=Object.keys(STATUS_META).filter(k=>counts[k]>0);
+  if(!keys.length)return;
 
   const ctx=canvas.getContext('2d');
-  chartInstances.trend=new Chart(ctx,{
-    type:'line',
+  chartInstances.statusDist=new Chart(ctx,{
+    type:'doughnut',
     data:{
-      labels:points.map(p=>p.label),
-      datasets:[
-        { label:'GMV', data:points.map(p=>p.gmv), borderColor:CHART_COLORS.accent, backgroundColor:'rgba(129,140,248,0.15)', fill:true, tension:.3, yAxisID:'y' },
-        { label:'Video', data:points.map(p=>p.video), borderColor:CHART_COLORS.green, backgroundColor:'rgba(34,197,94,0.1)', fill:false, tension:.3, yAxisID:'y1' },
-        { label:'Sampel Diminta', data:points.map(p=>p.sampelDiminta), borderColor:CHART_COLORS.amber, backgroundColor:'rgba(245,158,11,0.1)', fill:false, tension:.3, yAxisID:'y1' }
-      ]
+      labels:keys.map(k=>STATUS_META[k].label),
+      datasets:[{ data:keys.map(k=>counts[k]), backgroundColor:keys.map(k=>STATUS_META[k].color), borderWidth:0, hoverOffset:6 }]
     },
-    options:baseChartOptions({
-      interaction:{ mode:'index', intersect:false },
-      scales:{
-        x:{ ticks:{ color:CHART_COLORS.text2, font:{size:10} }, grid:{display:false} },
-        y:{ position:'left', ticks:{ color:CHART_COLORS.text2, font:{size:10}, callback:v=>fmtRp(v) }, grid:{ color:CHART_COLORS.grid }, beginAtZero:true },
-        y1:{ position:'right', ticks:{ color:CHART_COLORS.text2, font:{size:10} }, grid:{display:false}, beginAtZero:true }
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'62%',
+      plugins:{
+        legend:{ position:'right', labels:{ color:CHART_COLORS.text2, font:{size:11}, boxWidth:12, padding:10 } },
+        tooltip:{ callbacks:{ label:ctx=>{ const total=keys.reduce((a,k)=>a+counts[k],0); const pct=((ctx.parsed/total)*100).toFixed(0); return `${ctx.label}: ${ctx.parsed} kreator (${pct}%)`; } } }
       }
+    }
+  });
+}
+
+// ---------- Chart 2: Funnel konversi Sampel -> Video -> GMV ----------
+function renderFunnelChart(){
+  const canvas=document.getElementById('chartFunnel');
+  if(!canvas)return;
+  destroyChart('funnel');
+  if(!allData.length)return;
+
+  const sampelTerkirim=allData.filter(r=>r.sampelTerkirim>0).length;
+  const posting=allData.filter(r=>r.sampelTerkirim>0 && r.videoSampel>0).length;
+  const closing=allData.filter(r=>r.sampelTerkirim>0 && r.videoSampel>0 && r.gmv>0).length;
+  if(sampelTerkirim===0)return;
+
+  const ctx=canvas.getContext('2d');
+  chartInstances.funnel=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:['📦 Dapat Sampel','🎬 Posting Video','💰 Closing GMV'],
+      datasets:[{
+        data:[sampelTerkirim,posting,closing],
+        backgroundColor:[CHART_COLORS.accent2,CHART_COLORS.amber,CHART_COLORS.green],
+        borderRadius:6, maxBarThickness:46
+      }]
+    },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{ callbacks:{ label:ctx=>{ const pct=sampelTerkirim>0?((ctx.parsed.x/sampelTerkirim)*100).toFixed(0):0; return `${ctx.parsed.x} kreator (${pct}% dari yang dapat sampel)`; } } }
+      },
+      scales:{
+        x:{ ticks:{ color:CHART_COLORS.text2, font:{size:10} }, grid:{ color:CHART_COLORS.grid }, beginAtZero:true },
+        y:{ ticks:{ color:CHART_COLORS.text2, font:{size:12} }, grid:{display:false} }
+      }
+    }
+  });
+}
+
+// ---------- Chart 3: Distribusi ROI 45 hari (histogram bucket) ----------
+function renderRoiDistChart(){
+  const canvas=document.getElementById('chartRoiDist');
+  if(!canvas)return;
+  destroyChart('roiDist');
+  const withRoi=allData.filter(r=>r.roi45>0);
+  if(!withRoi.length)return;
+
+  const buckets=[
+    { label:'0-1x', min:0, max:1, color:CHART_COLORS.red },
+    { label:'1-2x', min:1, max:2, color:CHART_COLORS.amber },
+    { label:'2-3x', min:2, max:3, color:CHART_COLORS.accent },
+    { label:'3-5x', min:3, max:5, color:CHART_COLORS.accent2 },
+    { label:'5x+',  min:5, max:Infinity, color:CHART_COLORS.green }
+  ];
+  const counts=buckets.map(b=>withRoi.filter(r=>r.roi45>=b.min && r.roi45<b.max).length);
+
+  const ctx=canvas.getContext('2d');
+  chartInstances.roiDist=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:buckets.map(b=>b.label),
+      datasets:[{ data:counts, backgroundColor:buckets.map(b=>b.color), borderRadius:6, maxBarThickness:50 }]
+    },
+    options:baseChartOptions({
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>`${ctx.parsed.y} kreator` } } },
+      scales:{ x:{ ticks:{ color:CHART_COLORS.text2, font:{size:11} }, grid:{display:false} },
+               y:{ ticks:{ color:CHART_COLORS.text2, font:{size:10}, stepSize:1 }, grid:{ color:CHART_COLORS.grid }, beginAtZero:true } }
     })
+  });
+}
+
+// ---------- Chart 4: Top 10 ROI tertinggi (paling efisien, bukan cuma GMV gede) ----------
+function renderTopRoiChart(){
+  const canvas=document.getElementById('chartTopRoi');
+  if(!canvas)return;
+  destroyChart('topRoi');
+  const top=[...allData].filter(r=>r.roi45>0).sort((a,b)=>b.roi45-a.roi45).slice(0,10);
+  if(!top.length)return;
+
+  const ctx=canvas.getContext('2d');
+  chartInstances.topRoi=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:top.map(r=>'@'+r.name),
+      datasets:[{ label:'ROI 45h', data:top.map(r=>r.roi45), backgroundColor:CHART_COLORS.purple, borderRadius:5, maxBarThickness:24 }]
+    },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>`ROI ${ctx.parsed.x.toFixed(1)}x · GMV ${fmtRp(top[ctx.dataIndex].gmv)}` } } },
+      scales:{
+        x:{ ticks:{ color:CHART_COLORS.text2, font:{size:10}, callback:v=>v+'x' }, grid:{ color:CHART_COLORS.grid }, beginAtZero:true },
+        y:{ ticks:{ color:CHART_COLORS.text2, font:{size:10} }, grid:{display:false} }
+      }
+    }
   });
 }

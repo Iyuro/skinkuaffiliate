@@ -172,18 +172,23 @@
           <div class="chart-section-title">📈 Grafik Performa</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
             <div class="tbl-wrap chart-card">
-              <div class="tbl-header">💰 Top 10 GMV per Kreator</div>
-              <div class="chart-box" style="height:300px;position:relative"><canvas id="chartGmvPerCreator" style="width:100%;height:100%"></canvas></div>
+              <div class="tbl-header">🎯 Distribusi Status Kreator</div>
+              <div class="chart-box" style="height:300px;position:relative"><canvas id="chartStatusDist" style="width:100%;height:100%"></canvas></div>
             </div>
             <div class="tbl-wrap chart-card">
-              <div class="tbl-header">🎯 Sampel vs Video per Kreator</div>
-              <div class="chart-box" style="height:300px;position:relative"><canvas id="chartSampleVsVideo" style="width:100%;height:100%"></canvas></div>
+              <div class="tbl-header">🔻 Funnel Konversi</div>
+              <div class="chart-box" style="height:300px;position:relative"><canvas id="chartFunnel" style="width:100%;height:100%"></canvas></div>
             </div>
           </div>
-          <div class="tbl-wrap chart-card">
-            <div class="tbl-header">📊 Trend per File Upload — GMV, Video, Sampel Diminta</div>
-            <div id="chartTrendEmpty" style="display:none;padding:20px;text-align:center;color:var(--text3);font-size:13px">Upload minimal 2 file di waktu berbeda buat lihat trend.</div>
-            <div class="chart-box chart-box-wide" style="height:300px;position:relative"><canvas id="chartTrend" style="width:100%;height:100%"></canvas></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
+            <div class="tbl-wrap chart-card">
+              <div class="tbl-header">📐 Distribusi ROI 45 Hari</div>
+              <div class="chart-box" style="height:300px;position:relative"><canvas id="chartRoiDist" style="width:100%;height:100%"></canvas></div>
+            </div>
+            <div class="tbl-wrap chart-card">
+              <div class="tbl-header">🏆 Top 10 ROI Tertinggi</div>
+              <div class="chart-box" style="height:300px;position:relative"><canvas id="chartTopRoi" style="width:100%;height:100%"></canvas></div>
+            </div>
           </div>
         </div>
       </div>
@@ -254,9 +259,11 @@
       <div class="view" id="view-ai">
         <div class="ai-panel">
           <div class="ai-topbar">
-            <div style="display:flex;gap:6px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
               <button class="mode-btn active" id="mode-analyst" onclick="setAIMode('analyst')">📊 Analisis Data</button>
               <button class="mode-btn" id="mode-dev" onclick="setAIMode('dev')">⚡ Update Website</button>
+              <button class="btn btn-ghost btn-sm" id="btnAnalyzeAll" onclick="runFullAnalysis()" title="Minta AI bikin ringkasan analisis menyeluruh dari data sekarang">🧠 Analyze</button>
+              <button class="btn btn-ghost btn-sm" onclick="clearChat()" title="Hapus semua riwayat chat">🗑 Clear Chat</button>
             </div>
             <p id="modeDesc" style="font-size:11px;color:var(--text3)">Tanya performa kreator affiliate lo</p>
           </div>

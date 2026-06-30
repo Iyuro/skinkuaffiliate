@@ -64,3 +64,29 @@ function updateChatMsg(id,content){const el=document.getElementById(id);if(el)el
 function sendSuggestion(el){document.getElementById('chatInput').value=el.textContent;sendChat();}
 function handleChatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
 function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,100)+'px';}
+
+// ---------- Clear Chat ----------
+// Hapus seluruh riwayat percakapan (UI + history yang dikirim ke API), reset ke pesan welcome awal.
+function clearChat(){
+  if(!confirm('Hapus semua riwayat chat? Tindakan ini tidak bisa dibatalkan.'))return;
+  chatHistory=[];
+  mc=0;
+  const box=document.getElementById('chatMessages');
+  box.innerHTML=`<div class="chat-msg">
+    <div class="chat-avatar av-ai">AI</div>
+    <div class="chat-bubble b-ai">Chat sudah dibersihkan. 🧹<br><br>Mau mulai dari mana? Pilih salah satu suggestion di bawah, atau tanya bebas.</div>
+  </div>`;
+  renderSuggestions();
+  if(typeof toast==='function')toast('Chat dibersihkan','success');
+}
+
+// ---------- Analyze (full data analysis, satu klik) ----------
+// Auto-switch ke mode Analisis Data, lalu kirim prompt analisis menyeluruh tanpa
+// user perlu ngetik manual. Hasilnya summary performa + rekomendasi actionable.
+function runFullAnalysis(){
+  if(!allData.length){ if(typeof toast==='function')toast('Belum ada data untuk dianalisis. Upload dulu.','error'); return; }
+  if(aiMode!=='analyst') setAIMode('analyst');
+  const prompt='Analisis menyeluruh performa affiliate gua sekarang: ringkas kondisi keseluruhan, sebutkan kreator yang paling perlu diperhatikan (baik top perform maupun yang bermasalah), funnel konversi sampel ke video ke closing, dan kasih 3-5 rekomendasi aksi paling prioritas buat minggu ini.';
+  document.getElementById('chatInput').value=prompt;
+  sendChat();
+}
