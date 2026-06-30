@@ -2,11 +2,8 @@
 // Webhook bot Telegram 2-arah: orang ketik /start atau pesan apapun → bot kasih menu
 // inline button → klik button → bot query Supabase → balas data terformat.
 //
-// AKSES: grup Telegram (TELEGRAM_GROUP_CHAT_ID di env var) dapat akses FULL ke semua
-// menu data TERMASUK "👑 Owner Panel" — semua anggota grup diperlakukan sebagai owner.
-// Owner personal (TELEGRAM_CHAT_ID, kalau masih diisi) + siapapun di tabel bot_users
-// tetap diizinkan juga untuk kompatibilitas mundur.
-// Chat ID yang TIDAK ada di salah satu dari itu akan diam-diam di-ignore.
+// AKSES: hanya grup Telegram (TELEGRAM_GROUP_CHAT_ID di env var). Pesan dari chat ID
+// lain diam-diam di-ignore.
 //
 // Setup sekali: daftarkan URL endpoint ini ke Telegram lewat setWebhook (lihat api/setup-webhook.js).
 
@@ -14,7 +11,6 @@ const { getSupabase } = require('./_supabase');
 const { getStatus, isGhost, mergeRows, fmtRp } = require('./_creator-logic');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const OWNER_CHAT_ID = process.env.TELEGRAM_CHAT_ID; // opsional, kompatibilitas mundur
 const GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
 const SITE_URL = process.env.SITE_URL; // contoh: https://affiliate-skinku.vercel.app — dipakai buat tombol "🌐 Buka Dashboard"
 const TG_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
@@ -48,7 +44,7 @@ function answerCallback(callbackQueryId, text) {
 }
 
 // ---------- Keyboard ----------
-function buildMenuKeyboard(isOwner) {
+function buildMenuKeyboard() {
   const rows = [
     [{ text: '📊 Ringkasan Hari Ini', callback_data: 'summary' }],
     [{ text: '🔥 Top Perform', callback_data: 'perform' }, { text: '👻 Ghost Kreator', callback_data: 'ghost' }],
@@ -56,47 +52,15 @@ function buildMenuKeyboard(isOwner) {
   ];
   if (SITE_URL) rows.push([{ text: '🌐 Buka Dashboard', url: SITE_URL }]);
   rows.push([{ text: '🔄 Refresh', callback_data: 'menu' }]);
-  if (isOwner) rows.push([{ text: '👑 Owner Panel', callback_data: 'owner_panel' }]);
   return rows;
 }
 const BACK_KEYBOARD = SITE_URL
   ? [[{ text: '🌐 Buka Dashboard', url: SITE_URL }], [{ text: '« Menu Utama', callback_data: 'menu' }]]
   : [[{ text: '« Menu Utama', callback_data: 'menu' }]];
-const OWNER_PANEL_KEYBOARD = [
-  [{ text: '👥 Lihat Daftar User', callback_data: 'owner_list' }],
-  [{ text: '« Menu Utama', callback_data: 'menu' }]
-];
 
-// ---------- Akses & whitelist (tabel bot_users di Supabase) ----------
-async function getBotUsers() {
-  const supabase = getSupabase();
-  const { data, error } = await supabase.from('bot_users').select('*').order('added_at', { ascending: true });
-  if (error) throw new Error(error.message);
-  return data || [];
-}
-
-async function isAuthorized(chatId) {
-  if (String(chatId) === String(OWNER_CHAT_ID)) return true;
-  if (GROUP_CHAT_ID && String(chatId) === String(GROUP_CHAT_ID)) return true;
-  try {
-    const users = await getBotUsers();
-    return users.some(u => String(u.chat_id) === String(chatId));
-  } catch (err) {
-    console.error('Gagal cek whitelist bot_users:', err);
-    return false; // fail-closed: kalau Supabase error, lebih aman nolak daripada nge-bug jadi terbuka
-  }
-}
-
-async function addBotUser(chatId, displayName) {
-  const supabase = getSupabase();
-  const { error } = await supabase.from('bot_users').insert({ chat_id: String(chatId), display_name: displayName || '' });
-  if (error) throw new Error(error.message);
-}
-
-async function removeBotUser(chatId) {
-  const supabase = getSupabase();
-  const { error } = await supabase.from('bot_users').delete().eq('chat_id', String(chatId));
-  if (error) throw new Error(error.message);
+// ---------- Akses ----------
+function isAuthorized(chatId) {
+  return Boolean(GROUP_CHAT_ID) && String(chatId) === String(GROUP_CHAT_ID);
 }
 
 // ---------- Ambil & siapkan data dari Supabase (sama seperti loadAllDataFromServer di frontend) ----------
@@ -177,80 +141,21 @@ async function buildExpiring() {
   return { text: `⏰ *Kontrak/VIP*\n\n${lines.join('\n')}`, keyboard: BACK_KEYBOARD };
 }
 
-async function buildMenu(ctx) {
-  const greet = ctx.isOwner ? '👑 Halo owner!' : '🤖 Halo!';
-  return { text: `${greet}\n\n*Affiliate Analyzer Bot*\n\nMau lihat apa?`, keyboard: buildMenuKeyboard(ctx.isOwner) };
-}
-
-async function buildOwnerPanel(ctx) {
-  if (!ctx.isOwner) return { text: '🚫 Menu ini cuma buat owner.', keyboard: BACK_KEYBOARD };
-  return {
-    text: `👑 *Owner Panel*\n\n` +
-      `Kelola siapa aja yang boleh pakai bot ini.\n\n` +
-      `Buat *nambah* orang baru, kirim pesan format:\n` +
-      `\`/adduser <chat_id> <nama>\`\n` +
-      `Contoh: \`/adduser 123456789 Budi\`\n\n` +
-      `Buat *hapus* orang, kirim pesan format:\n` +
-      `\`/removeuser <chat_id>\`\n\n` +
-      `Chat ID bisa didapat lewat @userinfobot di Telegram.`,
-    keyboard: OWNER_PANEL_KEYBOARD
-  };
-}
-
-async function buildOwnerList(ctx) {
-  if (!ctx.isOwner) return { text: '🚫 Menu ini cuma buat owner.', keyboard: BACK_KEYBOARD };
-  const users = await getBotUsers();
-  const ownerLine = OWNER_CHAT_ID
-    ? `👑 \`${OWNER_CHAT_ID}\` — Owner personal`
-    : null;
-  const groupLine = GROUP_CHAT_ID ? `👥 \`${GROUP_CHAT_ID}\` — Grup (semua anggota = owner)` : null;
-  const headerLines = [ownerLine, groupLine].filter(Boolean).join('\n');
-  if (!users.length) return { text: `👥 *Daftar User Bot*\n\n${headerLines}\n\n_Belum ada user tambahan di whitelist._`, keyboard: OWNER_PANEL_KEYBOARD };
-  const lines = users.map(u => `• \`${u.chat_id}\`${u.display_name ? ' — ' + u.display_name : ''}`);
-  return { text: `👥 *Daftar User Bot* (${users.length + 1})\n\n${headerLines}\n${lines.join('\n')}`, keyboard: OWNER_PANEL_KEYBOARD };
+async function buildMenu() {
+  return { text: `🤖 *Affiliate Analyzer Bot*\n\nMau lihat apa?`, keyboard: buildMenuKeyboard() };
 }
 
 const ROUTES = {
   menu: buildMenu, summary: buildSummary, perform: buildPerform, ghost: buildGhost,
-  rekomen: buildRekomen, expiring: buildExpiring,
-  owner_panel: buildOwnerPanel, owner_list: buildOwnerList
+  rekomen: buildRekomen, expiring: buildExpiring
 };
-
-// ---------- Command teks (/adduser, /removeuser) — cuma owner ----------
-async function handleOwnerCommand(text, ctx) {
-  if (!ctx.isOwner) return null;
-
-  const addMatch = text.match(/^\/adduser\s+(-?\d+)\s*(.*)$/i);
-  if (addMatch) {
-    const [, chatId, name] = addMatch;
-    try {
-      await addBotUser(chatId, name.trim());
-      return { text: `✅ Chat ID \`${chatId}\`${name ? ' (' + name.trim() + ')' : ''} berhasil ditambahkan ke whitelist.`, keyboard: OWNER_PANEL_KEYBOARD };
-    } catch (err) {
-      return { text: `⚠️ Gagal nambah user: ${err.message}`, keyboard: OWNER_PANEL_KEYBOARD };
-    }
-  }
-
-  const removeMatch = text.match(/^\/removeuser\s+(-?\d+)$/i);
-  if (removeMatch) {
-    const [, chatId] = removeMatch;
-    try {
-      await removeBotUser(chatId);
-      return { text: `✅ Chat ID \`${chatId}\` berhasil dihapus dari whitelist.`, keyboard: OWNER_PANEL_KEYBOARD };
-    } catch (err) {
-      return { text: `⚠️ Gagal hapus user: ${err.message}`, keyboard: OWNER_PANEL_KEYBOARD };
-    }
-  }
-
-  return null; // bukan command owner, lanjut ke flow biasa
-}
 
 // ---------- Handler utama ----------
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(200).json({ ok: true }); // Telegram cuma POST, GET buat cek hidup aja
 
-  if (!BOT_TOKEN || (!OWNER_CHAT_ID && !GROUP_CHAT_ID)) {
-    console.error('TELEGRAM_BOT_TOKEN belum diset, atau TELEGRAM_CHAT_ID/TELEGRAM_GROUP_CHAT_ID keduanya kosong');
+  if (!BOT_TOKEN || !GROUP_CHAT_ID) {
+    console.error('TELEGRAM_BOT_TOKEN atau TELEGRAM_GROUP_CHAT_ID belum diset');
     return res.status(200).json({ ok: true }); // tetap 200 ke Telegram supaya tidak retry terus
   }
 
@@ -259,11 +164,9 @@ module.exports = async function handler(req, res) {
     const incomingChatId = update.message?.chat?.id || update.callback_query?.message?.chat?.id;
     if (!incomingChatId) return res.status(200).json({ ok: true });
 
-    const authorized = await isAuthorized(incomingChatId);
-    if (!authorized) {
+    if (!isAuthorized(incomingChatId)) {
       return res.status(200).json({ ok: true }); // diam-diam ignore, jangan kasih tahu apapun ke pengirim asing
     }
-    const ctx = { isOwner: String(incomingChatId) === String(OWNER_CHAT_ID) || (GROUP_CHAT_ID && String(incomingChatId) === String(GROUP_CHAT_ID)) };
 
     // ---------- Klik inline button ----------
     if (update.callback_query) {
@@ -272,7 +175,7 @@ module.exports = async function handler(req, res) {
       const builder = ROUTES[action] || ROUTES.menu;
       answerCallback(cq.id).catch(() => {}); // ack cepat biar tombol tidak "loading" lama di UI Telegram
       try {
-        const { text, keyboard } = await builder(ctx);
+        const { text, keyboard } = await builder();
         await editMessage(cq.message.chat.id, cq.message.message_id, text, keyboard);
       } catch (err) {
         await editMessage(cq.message.chat.id, cq.message.message_id, `⚠️ Gagal ambil data: ${err.message}`, BACK_KEYBOARD);
@@ -282,19 +185,8 @@ module.exports = async function handler(req, res) {
 
     // ---------- Pesan teks ----------
     if (update.message) {
-      const text = (update.message.text || '').trim();
-
-      // Command khusus owner buat kelola whitelist
-      if (ctx.isOwner && /^\/(adduser|removeuser)\b/i.test(text)) {
-        const result = await handleOwnerCommand(text, ctx);
-        if (result) {
-          await sendMessage(update.message.chat.id, result.text, result.keyboard);
-          return res.status(200).json({ ok: true });
-        }
-      }
-
       // Default: pesan apapun (termasuk /start) → tampilkan menu
-      const { text: menuText, keyboard } = await buildMenu(ctx);
+      const { text: menuText, keyboard } = await buildMenu();
       await sendMessage(update.message.chat.id, menuText, keyboard);
       return res.status(200).json({ ok: true });
     }
