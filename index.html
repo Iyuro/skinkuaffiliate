@@ -6,17 +6,6 @@
 <title>Affiliate Analyzer — SKINKU</title>
 <link rel="stylesheet" href="css/style.css">
 <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('aa_theme')||'dark');</script>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script>
-  // Kalau dibuka sebagai Telegram Mini App (lewat tombol "Buka Dashboard" di bot),
-  // window.Telegram.WebApp otomatis tersedia. expand() bikin tampilan full-height,
-  // ready() kasih tau Telegram halaman sudah siap. Aman dipanggil meski dibuka lewat
-  // browser biasa (window.Telegram tidak ada -> di-skip diam-diam).
-  if (window.Telegram && window.Telegram.WebApp) {
-    window.Telegram.WebApp.ready();
-    window.Telegram.WebApp.expand();
-  }
-</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 </head>
