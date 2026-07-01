@@ -140,11 +140,74 @@ body{
 .stat-pill-val{font-size:18px;font-weight:800;color:var(--pink2)}
 .stat-pill-lbl{font-size:11px;color:var(--text2);margin-top:2px}
 
+/* ===== INTIP BUTTON + REVEAL MODAL ===== */
+.lb-actions{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.intip-btn{
+  border:none;cursor:pointer;font-size:11px;font-weight:800;color:#fff;
+  background:linear-gradient(135deg,var(--lavender),var(--pink2));
+  padding:6px 11px;border-radius:20px;white-space:nowrap;
+  box-shadow:0 3px 8px rgba(216,196,255,0.4);transition:transform .15s;
+}
+.intip-btn:hover{transform:translateY(-1px) scale(1.03)}
+.intip-btn:active{transform:scale(.96)}
+.intip-btn.revealed{background:linear-gradient(135deg,#7ee0a8,#4ec98a);cursor:default}
+
+.reveal-overlay{
+  position:fixed;inset:0;background:rgba(58,42,53,0.45);backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;
+  animation:fadeIn .2s ease;
+}
+.reveal-overlay.hidden{display:none}
+.reveal-card{
+  background:linear-gradient(160deg,#fff 0%,#fff5f0 100%);
+  border-radius:22px;padding:26px 22px;max-width:340px;width:100%;
+  box-shadow:0 20px 50px rgba(58,42,53,0.3);text-align:center;position:relative;
+  animation:popUp .35s ease;
+}
+.reveal-close{
+  position:absolute;top:12px;right:14px;border:none;background:none;
+  font-size:18px;color:var(--text2);cursor:pointer;line-height:1;
+}
+.reveal-icon{font-size:38px;margin-bottom:6px}
+.reveal-title{font-size:16px;font-weight:800;margin-bottom:4px}
+.reveal-sub{font-size:12.5px;color:var(--text2);margin-bottom:16px;line-height:1.5}
+.reveal-input{
+  width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid rgba(255,158,181,0.35);
+  background:#fff;font-size:14px;color:var(--text);outline:none;text-align:center;
+  margin-bottom:10px;transition:border .2s;
+}
+.reveal-input:focus{border-color:var(--pink2)}
+.reveal-input.shake{animation:shake .4s ease}
+.reveal-submit{
+  width:100%;border:none;padding:12px;border-radius:12px;font-size:14px;font-weight:800;color:#fff;
+  background:linear-gradient(135deg,var(--pink),var(--pink2));cursor:pointer;
+  box-shadow:0 6px 16px rgba(255,158,181,0.35);transition:transform .15s,opacity .15s;
+}
+.reveal-submit:hover{transform:translateY(-1px)}
+.reveal-submit:disabled{opacity:.6;cursor:default;transform:none}
+.reveal-msg{font-size:12.5px;margin-top:10px;min-height:16px;font-weight:700}
+.reveal-msg.err{color:#e0526b}
+.reveal-msg.ok{color:#3aa876}
+
+.reveal-success .reveal-icon{animation:bounce .6s ease infinite}
+.reveal-username-big{font-size:19px;font-weight:900;color:var(--pink2);margin:8px 0 4px;word-break:break-all}
+.reveal-congrats{font-size:13px;color:var(--text);line-height:1.6;margin-bottom:6px}
+
+.confetti-piece{
+  position:fixed;top:-10px;border-radius:2px;pointer-events:none;z-index:1001;
+  animation:confettiFall linear forwards;
+}
+
 @keyframes fadeDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes popUp{from{opacity:0;transform:translateY(24px) scale(.92)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+@keyframes confettiFall{
+  from{transform:translateY(0) rotate(0deg);opacity:1}
+  to{transform:translateY(100vh) rotate(540deg);opacity:0}
+}
 
 @media (max-width:480px){
   .header h1{font-size:21px}
@@ -158,6 +221,7 @@ body{
   .podium-wrap{gap:6px}
   .stats-strip{gap:7px}
   .tab-btn{padding:9px 14px;font-size:12px}
+  .intip-btn{font-size:10px;padding:5px 9px}
 }
 </style>
 </head>
@@ -203,8 +267,17 @@ body{
 
 <div class="footer-brand">Dibuat dengan 💖 oleh <b>SKINKU</b> — Affiliate Analyzer</div>
 
+<div class="reveal-overlay hidden" id="revealOverlay" onclick="if(event.target===this)closeReveal()">
+  <div class="reveal-card" id="revealCard">
+    <button class="reveal-close" onclick="closeReveal()">✕</button>
+    <div id="revealBody"></div>
+  </div>
+</div>
+
 <script>
 let allGmvData = [], allVideoData = [];
+let revealedMap = {}; // key: "gmv-12" / "video-4" -> username asli yang udah terbukti
+let currentReveal = null; // {rank, type}
 
 function switchTab(tab){
   document.getElementById('tabGmv').classList.toggle('active', tab==='gmv');
@@ -289,6 +362,10 @@ function renderStats(id, data, type){
 }
 
 /* -------- FULL LEADERBOARD -------- */
+// Rank yang sudah tampil di podium (2-1-3) di atas, jadi list di bawah
+// defaultnya langsung mulai dari rank 4 biar nggak dobel.
+const PODIUM_RANKS_SHOWN = 3;
+
 function buildLbRow(item, type){
   const cls = rowClass(item.rank);
   const badge = rankBadge(item.rank);
@@ -300,17 +377,23 @@ function buildLbRow(item, type){
     metricMain = `${item.video} video`;
     metricSub = item.gmvFormatted;
   }
+  const revealed = revealedMap[type+'-'+item.rank];
+  const usernameHtml = revealed ? `@${revealed}` : `@${item.username}`;
+  const intipBtn = revealed
+    ? `<button class="intip-btn revealed" disabled>✅ Terbuka</button>`
+    : `<button class="intip-btn" onclick="openReveal(${item.rank},'${type}')">🔓 Intip</button>`;
   return `<div class="lb-row ${cls}" style="animation-delay:${Math.min(item.rank*0.03,0.6)}s">
     <div class="lb-rank-badge">${badge}</div>
     <div class="lb-avatar">${initials(item.username)}</div>
     <div class="lb-info">
-      <div class="lb-username">@${item.username}</div>
+      <div class="lb-username">${usernameHtml}</div>
       <div class="lb-sub">${type==='gmv'?`Sampel: ${item.sampelTerkirim||0} pcs`:`GMV: ${item.gmvFormatted}`}</div>
     </div>
     <div class="lb-metric">
       <div class="lb-metric-main">${metricMain}</div>
       <div class="lb-metric-sub">${metricSub}</div>
     </div>
+    <div class="lb-actions">${intipBtn}</div>
   </div>`;
 }
 
@@ -320,14 +403,20 @@ function renderLeaderboard(type, data){
   const countEl = document.getElementById('lbCount'+cap(type));
   if(!data || !data.length){ lbEl.style.display='none'; return; }
   lbEl.style.display = 'block';
-  countEl.textContent = data.length + ' kreator';
-  listEl.innerHTML = data.map(item => buildLbRow(item, type)).join('');
+  // Default: sembunyiin rank 1-3 karena udah ditampilin di podium di atas.
+  const rest = data.filter(r => r.rank > PODIUM_RANKS_SHOWN);
+  countEl.textContent = rest.length + ' kreator';
+  listEl.innerHTML = rest.length
+    ? rest.map(item => buildLbRow(item, type)).join('')
+    : '<div class="lb-empty">Semua kreator udah tampil di podium ya 🏆</div>';
 }
 
 function filterList(type){
   const q = document.getElementById('search'+cap(type)).value.toLowerCase().trim();
   const source = type==='gmv' ? allGmvData : allVideoData;
-  const filtered = q ? source.filter(r => r.username.toLowerCase().includes(q)) : source;
+  // Pas nggak lagi nyari, tetep sembunyiin rank 1-3 (udah ada di podium).
+  const base = q ? source : source.filter(r => r.rank > PODIUM_RANKS_SHOWN);
+  const filtered = q ? base.filter(r => r.username.toLowerCase().includes(q)) : base;
   const listEl = document.getElementById('lbList'+cap(type));
   const countEl = document.getElementById('lbCount'+cap(type));
   if(!filtered.length){
@@ -347,6 +436,113 @@ function fmtRp(v){
   if(v>=1e6) return 'Rp '+(v/1e6).toFixed(1)+'jt';
   if(v>=1e3) return 'Rp '+(v/1e3).toFixed(0)+'rb';
   return 'Rp '+v;
+}
+
+/* -------- INTIP / REVEAL MODAL -------- */
+function openReveal(rank, type){
+  currentReveal = { rank, type };
+  const source = type==='gmv' ? allGmvData : allVideoData;
+  const item = source.find(r => r.rank === rank);
+  const overlay = document.getElementById('revealOverlay');
+  const card = document.getElementById('revealCard');
+  card.className = 'reveal-card';
+  document.getElementById('revealBody').innerHTML = `
+    <div class="reveal-icon">🔒</div>
+    <div class="reveal-title">Intip Username</div>
+    <div class="reveal-sub">Ini akun kamu? Ketik username TikTok kamu sendiri (lengkap, tanpa @) sebagai kata sandi buat buka namanya di sini.</div>
+    <input type="text" class="reveal-input" id="revealInput" placeholder="Ketik username kamu..." autocomplete="off" autocapitalize="off">
+    <button class="reveal-submit" id="revealSubmitBtn" onclick="submitReveal()">✨ Buka Sekarang</button>
+    <div class="reveal-msg" id="revealMsg"></div>
+  `;
+  overlay.classList.remove('hidden');
+  const input = document.getElementById('revealInput');
+  setTimeout(()=>input.focus(), 50);
+  input.addEventListener('keydown', e => { if(e.key==='Enter') submitReveal(); });
+}
+
+function closeReveal(){
+  document.getElementById('revealOverlay').classList.add('hidden');
+  currentReveal = null;
+}
+
+async function submitReveal(){
+  if(!currentReveal) return;
+  const input = document.getElementById('revealInput');
+  const msgEl = document.getElementById('revealMsg');
+  const btn = document.getElementById('revealSubmitBtn');
+  const guess = input.value.trim();
+  if(!guess){
+    msgEl.textContent = 'Isi dulu username-nya ya 🌸';
+    msgEl.className = 'reveal-msg err';
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Mengecek...';
+  msgEl.textContent = '';
+  msgEl.className = 'reveal-msg';
+  try{
+    const res = await fetch('/api/podium-reveal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rank: currentReveal.rank, type: currentReveal.type, guess })
+    });
+    const data = await res.json();
+
+    if(data.success){
+      revealedMap[currentReveal.type + '-' + currentReveal.rank] = data.username;
+      showRevealSuccess(data);
+      // refresh list biar badge "Terbuka" & username asli langsung kepasang di baris
+      if(currentReveal.type === 'gmv') renderLeaderboard('gmv', allGmvData);
+      else renderLeaderboard('video', allVideoData);
+      const q = document.getElementById('search'+cap(currentReveal.type)).value.trim();
+      if(q) filterList(currentReveal.type);
+    } else {
+      btn.disabled = false;
+      btn.textContent = '✨ Buka Sekarang';
+      msgEl.textContent = data.message || 'Password salah, coba lagi ya!';
+      msgEl.className = 'reveal-msg err';
+      input.classList.remove('shake');
+      void input.offsetWidth;
+      input.classList.add('shake');
+      input.focus();
+    }
+  }catch(err){
+    btn.disabled = false;
+    btn.textContent = '✨ Buka Sekarang';
+    msgEl.textContent = 'Gagal menghubungi server. Coba lagi ya.';
+    msgEl.className = 'reveal-msg err';
+  }
+}
+
+function showRevealSuccess(data){
+  const card = document.getElementById('revealCard');
+  card.className = 'reveal-card reveal-success';
+  document.getElementById('revealBody').innerHTML = `
+    <div class="reveal-icon">🎉</div>
+    <div class="reveal-title">Selamat! Terverifikasi</div>
+    <div class="reveal-username-big">@${data.username}</div>
+    <div class="reveal-congrats">${data.message || 'Selamat, kamu berhasil buka namamu sendiri! 🎊'}</div>
+    <div class="reveal-sub" style="margin-bottom:0">${data.gmvFormatted ? `GMV: <b>${data.gmvFormatted}</b> &nbsp;•&nbsp; Video: <b>${data.video}</b>` : ''}</div>
+  `;
+  launchConfetti();
+}
+
+function launchConfetti(){
+  const colors = ['#ffb6c8','#ff9eb5','#ffd166','#f4a72e','#d8c4ff','#a8e6cf'];
+  const count = 60;
+  for(let i=0;i<count;i++){
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    const size = 6 + Math.random()*6;
+    el.style.left = Math.random()*100 + 'vw';
+    el.style.width = size + 'px';
+    el.style.height = (size*0.4) + 'px';
+    el.style.background = colors[Math.floor(Math.random()*colors.length)];
+    el.style.animationDuration = (2 + Math.random()*1.5) + 's';
+    el.style.animationDelay = (Math.random()*0.4) + 's';
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(), 4200);
+  }
 }
 
 /* -------- LOAD -------- */
