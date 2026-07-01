@@ -1,10 +1,82 @@
+// ─── File Chips dengan select & batch delete ──────────────────────────────────
+let selectedFiles = new Set();
+
 function renderFileChips(){
-  document.getElementById('fileChips').innerHTML=loadedFiles.map(f=>`<div class="chip">
-    <span class="chip-dot"></span>${escapeHtml(f.name)} <span style="color:var(--text3)">(${f.count})</span>
-    <button class="chip-del" title="Hapus file ini" onclick="deleteFile('${f.id}','${escapeHtml(f.name).replace(/'/g,"\\'")}')">✕</button>
-  </div>`).join('');
-  document.getElementById('uploadEmpty').style.display=loadedFiles.length?'none':'block';
-  document.getElementById('uploadSummary').style.display=loadedFiles.length?'block':'none';
+  const container = document.getElementById('fileChips');
+  document.getElementById('uploadEmpty').style.display = loadedFiles.length ? 'none' : 'block';
+  document.getElementById('uploadSummary').style.display = loadedFiles.length ? 'block' : 'none';
+
+  if(!loadedFiles.length){ container.innerHTML=''; return; }
+
+  const allSelected = loadedFiles.length > 0 && selectedFiles.size === loadedFiles.length;
+
+  container.innerHTML = `
+    <div class="file-mgr">
+      <div class="file-mgr-toolbar">
+        <label class="file-select-all">
+          <input type="checkbox" id="chkSelectAll" ${allSelected?'checked':''} onchange="toggleSelectAll(this.checked)">
+          <span>${allSelected?'Batal pilih semua':'Pilih semua'} (${loadedFiles.length} file)</span>
+        </label>
+        <button class="btn btn-danger btn-sm" id="btnDeleteSelected"
+          onclick="deleteSelectedFiles()"
+          style="display:${selectedFiles.size>0?'inline-flex':'none'}">
+          🗑 Hapus ${selectedFiles.size} file terpilih
+        </button>
+      </div>
+      <div class="file-list">
+        ${loadedFiles.map(f => `
+          <div class="file-row ${selectedFiles.has(f.id)?'selected':''}" id="frow-${f.id}">
+            <label class="file-row-check">
+              <input type="checkbox" ${selectedFiles.has(f.id)?'checked':''}
+                onchange="toggleSelectFile('${f.id}', this.checked)">
+            </label>
+            <div class="file-row-icon">📄</div>
+            <div class="file-row-info">
+              <div class="file-row-name">${escapeHtml(f.name)}</div>
+              <div class="file-row-meta">${f.count} kreator · ${f.type==='transaction'?'Transaction':'Sample'} · ${formatFileDate(f.uploadedAt)}</div>
+            </div>
+            <button class="file-row-del" title="Hapus file ini"
+              onclick="deleteFile('${f.id}','${escapeHtml(f.name).replace(/'/g,"\\'")}')">✕</button>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function formatFileDate(ts){
+  if(!ts) return '';
+  try{
+    const d = new Date(ts);
+    return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+  }catch(e){ return ''; }
+}
+
+function toggleSelectAll(checked){
+  selectedFiles = checked ? new Set(loadedFiles.map(f=>f.id)) : new Set();
+  renderFileChips();
+}
+
+function toggleSelectFile(id, checked){
+  checked ? selectedFiles.add(id) : selectedFiles.delete(id);
+  renderFileChips();
+}
+
+async function deleteSelectedFiles(){
+  if(!selectedFiles.size) return;
+  const count = selectedFiles.size;
+  if(!confirm(`Hapus ${count} file terpilih? Semua data kreator dari file ini akan terhapus permanen.`)) return;
+
+  const ids = [...selectedFiles];
+  selectedFiles.clear();
+
+  let failed = 0;
+  for(const id of ids){
+    try{ await apiDeleteFile(id); }
+    catch(e){ failed++; console.error('Gagal hapus file',id,e); }
+  }
+
+  await loadAllDataFromServer();
+  if(failed) toast(`${count-failed} file dihapus, ${failed} gagal`,'error');
+  else toast(`${count} file berhasil dihapus`,'success');
 }
 
 function renderUploadKPI(){
