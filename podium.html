@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🏆 Podium Kreator — SKINKU Affiliate</title>
 <meta name="description" content="Top kreator affiliate SKINKU berdasarkan GMV dan video terbanyak.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <style>
 :root{
   --pink:#ffb6c8;--pink2:#ff9eb5;--peach:#ffd4c4;--cream:#fff5f0;
@@ -209,7 +210,12 @@ body{
 }
 .cert-divider{width:56px;height:2px;margin:0 auto 12px;background:linear-gradient(90deg,transparent,var(--gold2),transparent)}
 .cert-given-to{font-size:11.5px;color:var(--text2);margin-bottom:4px}
-.reveal-username-big{font-size:20px;font-weight:900;color:var(--pink2);margin:2px 0 12px;word-break:break-all;font-family:Georgia,'Times New Roman',serif}
+.reveal-username-big{font-size:20px;font-weight:900;color:var(--pink2);margin:2px 0 8px;word-break:break-all;font-family:Georgia,'Times New Roman',serif}
+.cert-rank-badge{
+  display:inline-block;font-size:11px;font-weight:800;color:#fff;
+  background:linear-gradient(135deg,var(--pink),var(--pink2));
+  padding:4px 12px;border-radius:20px;margin-bottom:14px;
+}
 .cert-body{font-size:12.5px;color:var(--text);line-height:1.7;margin-bottom:14px}
 .cert-body b{color:var(--pink2)}
 .cert-stats{
@@ -220,6 +226,23 @@ body{
 .cert-stats b{color:var(--text);font-size:13px}
 .cert-footer{display:flex;align-items:center;justify-content:space-between;font-size:10.5px;color:var(--text2)}
 .cert-sign{font-weight:800;color:var(--gold2)}
+
+.cert-share-btn{
+  display:block;width:calc(100% - 20px);margin:14px 10px 6px;border:none;padding:12px;
+  border-radius:12px;font-size:13.5px;font-weight:800;color:#fff;cursor:pointer;
+  background:linear-gradient(135deg,var(--lavender),var(--pink2));
+  box-shadow:0 6px 16px rgba(216,196,255,0.4);transition:transform .15s,opacity .15s;
+}
+.cert-share-btn:hover{transform:translateY(-1px)}
+.cert-share-btn:disabled{opacity:.65;cursor:default;transform:none}
+
+.skinku-toast{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+  background:#3a2a35;color:#fff;font-size:12.5px;font-weight:600;padding:12px 18px;
+  border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.25);z-index:1002;max-width:88vw;
+  text-align:center;opacity:0;transition:opacity .25s ease,transform .25s ease;line-height:1.5;
+}
+.skinku-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 .confetti-piece{
   position:fixed;top:-10px;border-radius:2px;pointer-events:none;z-index:1001;
@@ -367,23 +390,18 @@ function renderStats(id, data, type){
   const totalCreators = data.length;
   let html = '';
   if(type === 'gmv'){
-    const totalGmv = data.reduce((s,r)=>s+(r.gmv||0),0);
-    const totalVideo = data.reduce((s,r)=>s+(r.video||0),0);
-    const avgGmv = totalCreators ? Math.round(totalGmv/totalCreators) : 0;
+    // GMV disembunyikan total di sini (termasuk rata-rata) biar nggak ada
+    // yang bisa nebak-nebak skala pendapatan siapa pun dari statistik publik.
+    const totalSampel = data.reduce((s,r)=>s+(r.sampelTerkirim||0),0);
     html = `
       <div class="stat-pill"><div class="stat-pill-val">${totalCreators}</div><div class="stat-pill-lbl">Total Kreator</div></div>
-      <div class="stat-pill"><div class="stat-pill-val">${fmtRp(totalGmv)}</div><div class="stat-pill-lbl">Total GMV</div></div>
-      <div class="stat-pill"><div class="stat-pill-val">${fmtRp(avgGmv)}</div><div class="stat-pill-lbl">Rata-rata GMV</div></div>
-      <div class="stat-pill"><div class="stat-pill-val">${totalVideo}</div><div class="stat-pill-lbl">Total Video</div></div>`;
+      <div class="stat-pill"><div class="stat-pill-val">${totalSampel}</div><div class="stat-pill-lbl">Total Sampel Terkirim</div></div>`;
   } else {
     const totalVideo = data.reduce((s,r)=>s+(r.video||0),0);
-    const totalGmv = data.reduce((s,r)=>s+(r.gmv||0),0);
     const avgVideo = totalCreators ? (totalVideo/totalCreators).toFixed(1) : 0;
     html = `
       <div class="stat-pill"><div class="stat-pill-val">${totalCreators}</div><div class="stat-pill-lbl">Total Kreator</div></div>
-      <div class="stat-pill"><div class="stat-pill-val">${totalVideo}</div><div class="stat-pill-lbl">Total Video</div></div>
-      <div class="stat-pill"><div class="stat-pill-val">${avgVideo}</div><div class="stat-pill-lbl">Rata-rata Video</div></div>
-      <div class="stat-pill"><div class="stat-pill-val">${fmtRp(totalGmv)}</div><div class="stat-pill-lbl">Total GMV</div></div>`;
+      <div class="stat-pill"><div class="stat-pill-val">${avgVideo}</div><div class="stat-pill-lbl">Rata-rata Video</div></div>`;
   }
   el.innerHTML = html;
   el.style.display = 'flex';
@@ -397,14 +415,9 @@ const PODIUM_RANKS_SHOWN = 3;
 function buildLbRow(item, type){
   const cls = rowClass(item.rank);
   const badge = rankBadge(item.rank);
-  let metricMain, metricSub;
-  if(type==='gmv'){
-    metricMain = item.gmvFormatted;
-    metricSub = `${item.video} video`;
-  } else {
-    metricMain = `${item.video} video`;
-    metricSub = item.gmvFormatted;
-  }
+  // GMV per-kreator disembunyikan di sini demi privasi — cuma dibuka lewat
+  // sertifikat "Intip" setelah verifikasi username. Yang tampil di publik cuma video & sampel.
+  const metricMain = `${item.video} video`;
   const revealed = revealedMap[type+'-'+item.rank];
   const usernameHtml = revealed ? `@${revealed}` : `@${item.username}`;
   const intipBtn = revealed
@@ -415,11 +428,10 @@ function buildLbRow(item, type){
     <div class="lb-avatar">${initials(item.username)}</div>
     <div class="lb-info">
       <div class="lb-username">${usernameHtml}</div>
-      <div class="lb-sub">${type==='gmv'?`Sampel: ${item.sampelTerkirim||0} pcs`:`GMV: ${item.gmvFormatted}`}</div>
+      <div class="lb-sub">Sampel: ${item.sampelTerkirim||0} pcs</div>
     </div>
     <div class="lb-metric">
       <div class="lb-metric-main">${metricMain}</div>
-      <div class="lb-metric-sub">${metricSub}</div>
     </div>
     <div class="lb-actions">${intipBtn}</div>
   </div>`;
@@ -531,7 +543,7 @@ async function submitReveal(){
 
     if(data.success){
       revealedMap[currentReveal.type + '-' + currentReveal.rank] = data.username;
-      showRevealSuccess(data);
+      showRevealSuccess(data, currentReveal.rank, currentReveal.type);
       // refresh list biar badge "Terbuka" & username asli langsung kepasang di baris
       if(currentReveal.type === 'gmv') renderLeaderboard('gmv', allGmvData);
       else renderLeaderboard('video', allVideoData);
@@ -555,35 +567,112 @@ async function submitReveal(){
   }
 }
 
-function showRevealSuccess(data){
+function showRevealSuccess(data, rank, type){
   const card = document.getElementById('revealCard');
   card.className = 'reveal-card reveal-success';
   const today = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
+  const categoryLabel = type === 'video' ? 'Top Video' : 'Top GMV';
   document.getElementById('revealBody').innerHTML = `
-    <div class="cert-frame">
+    <div class="cert-frame" id="certFrame">
       <div class="cert-seal">🏅</div>
       <div class="cert-eyebrow">Sertifikat Apresiasi</div>
       <div class="cert-divider"></div>
       <div class="cert-given-to">Dengan bangga dipersembahkan untuk</div>
       <div class="reveal-username-big">@${data.username}</div>
+      <div class="cert-rank-badge">Peringkat #${rank} &middot; ${categoryLabel}</div>
       <div class="cert-body">
         ${data.message || 'Selamat, identitasmu berhasil terverifikasi!'}<br><br>
         Terima kasih sudah menjadi bagian dari keluarga besar <b>SKINKU Affiliate</b> 💖
         Kerja keras dan konsistensi kamu bikin cerita bareng SKINKU makin seru.
         Semoga makin cuan, makin banyak video, dan terus berkarya bareng kami ya! 🌸
       </div>
-      ${data.gmvFormatted ? `
       <div class="cert-stats">
-        <div>GMV<br><b>${data.gmvFormatted}</b></div>
+        <div>Peringkat<br><b>#${rank}</b></div>
+        ${data.gmvFormatted ? `<div>GMV<br><b>${data.gmvFormatted}</b></div>` : ''}
         <div>Video<br><b>${data.video}</b></div>
-      </div>` : ''}
+      </div>
       <div class="cert-footer">
         <div class="cert-sign">✨ SKINKU Affiliate Team</div>
         <div class="cert-date">${today}</div>
       </div>
     </div>
+    <button class="cert-share-btn" id="shareCertBtn">📤 Bagikan Sertifikat</button>
   `;
+  // Pakai closure langsung (bukan nyisipin string ke onclick=""), jadi aman
+  // walau username/pesan ada karakter kutip atau simbol aneh.
+  document.getElementById('shareCertBtn').addEventListener('click', () => {
+    shareCertificate({ rank, type, categoryLabel, username: data.username, gmvFormatted: data.gmvFormatted, video: data.video });
+  });
   launchConfetti();
+}
+
+/* -------- BAGIKAN SERTIFIKAT -------- */
+function showToast(msg){
+  const t = document.createElement('div');
+  t.className = 'skinku-toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  requestAnimationFrame(()=>t.classList.add('show'));
+  setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(), 300); }, 3800);
+}
+
+function buildShareCaption({ rank, categoryLabel, username }){
+  const variants = [
+    `🏅 Yeay! Aku baru aja terverifikasi di Papan Peringkat SKINKU Affiliate — Peringkat #${rank} kategori ${categoryLabel}! 🎉\n\nMakasih SKINKU udah jadi rumah buat berkarya 💖 Yuk gabung juga & raih pencapaianmu sendiri!\n\n#SKINKUAffiliate #TopKreator`,
+    `✨ Sertifikat Apresiasi dari SKINKU Affiliate resmi kudapetin! Peringkat #${rank} di kategori ${categoryLabel} 🏆\n\nTerus semangat bikin konten & cuan bareng SKINKU. Kamu juga bisa, yuk gabung sekarang 🌸\n\n#SKINKUAffiliate #KreatorTikTok`,
+    `🎊 Resmi jadi kreator Peringkat #${rank} kategori ${categoryLabel} di SKINKU Affiliate!\n\nSemua ini berkat kerja keras & konsistensi. Yuk buktiin pencapaianmu juga bareng SKINKU! ✨\n\n#SKINKUAffiliate #ProudCreator`
+  ];
+  return variants[Math.floor(Math.random()*variants.length)];
+}
+
+async function shareCertificate(info){
+  const btn = document.getElementById('shareCertBtn');
+  const caption = buildShareCaption(info);
+  const shareUrl = window.location.href.split('?')[0];
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Menyiapkan...'; }
+
+  let file = null;
+  try{
+    const node = document.getElementById('certFrame');
+    if(window.html2canvas && node){
+      const canvas = await html2canvas(node, { backgroundColor:'#fffdf7', scale:2 });
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      if(blob) file = new File([blob], `sertifikat-${info.username}.png`, { type:'image/png' });
+    }
+  }catch(e){ /* kalau gagal bikin gambar, tetep lanjut share teksnya aja */ }
+
+  try{
+    if(file && navigator.canShare && navigator.canShare({ files:[file] })){
+      await navigator.share({ files:[file], title:'Sertifikat SKINKU Affiliate', text: caption });
+      showToast('Berhasil dibagikan! ✨');
+    } else if(navigator.share){
+      await navigator.share({ title:'Sertifikat SKINKU Affiliate', text: caption + '\n\n' + shareUrl });
+      showToast('Berhasil dibagikan! ✨');
+    } else {
+      if(file){
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(file);
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        await navigator.clipboard.writeText(caption);
+        showToast(file
+          ? '📥 Gambar sertifikat ke-download & caption ke-copy! Tinggal upload & tempel ke story kamu ✨'
+          : '📋 Caption ke-copy, tinggal tempel di story/WA kamu ✨');
+      } else if(file){
+        showToast('📥 Gambar sertifikat berhasil di-download!');
+      }
+    }
+  }catch(err){
+    if(!err || err.name !== 'AbortError'){
+      showToast('Gagal membagikan, coba lagi ya 🙏');
+    }
+  } finally {
+    if(btn){ btn.disabled = false; btn.textContent = '📤 Bagikan Sertifikat'; }
+  }
 }
 
 function launchConfetti(){
@@ -615,12 +704,12 @@ async function loadPodium(){
     allVideoData = data.allVideo || data.topVideo || [];
 
     renderPodium('podiumGmv', data.topGmv,
-      item => item.gmvFormatted,
-      item => `${item.video} video`);
+      item => `${item.video} video`,
+      item => `Sampel: ${item.sampelTerkirim||0} pcs`);
 
     renderPodium('podiumVideo', data.topVideo,
       item => item.video + ' video',
-      item => item.gmvFormatted);
+      item => `Sampel: ${item.sampelTerkirim||0} pcs`);
 
     renderStats('statsGmv', allGmvData, 'gmv');
     renderStats('statsVideo', allVideoData, 'video');
