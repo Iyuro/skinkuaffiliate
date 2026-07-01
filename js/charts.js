@@ -6,10 +6,17 @@
 // 4. Bar horizontal Top 10 ROI tertinggi (kreator paling efisien, bukan cuma GMV terbesar)
 
 let chartInstances = { statusDist:null, funnel:null, roiDist:null, topRoi:null };
+let _chartRetryTimer = null;
+
+// Warna sesuai tema — light mode chart area terang, pakai warna lebih gelap biar keliatan
+function getGridColor(){ return document.documentElement.dataset.theme==='light'?'rgba(0,0,0,0.07)':'rgba(255,255,255,0.06)'; }
+function getTextColor(){ return document.documentElement.dataset.theme==='light'?'#555':'#9090aa'; }
 
 const CHART_COLORS = {
   accent: '#818cf8', accent2: '#6366f1', green: '#22c55e', amber: '#f59e0b',
-  red: '#ef4444', purple: '#a855f7', pink:'#ec4899', text2: '#9090aa', grid: 'rgba(255,255,255,0.06)'
+  red: '#ef4444', purple: '#a855f7', pink:'#ec4899',
+  get text2(){ return getTextColor(); },
+  get grid(){ return getGridColor(); }
 };
 
 const STATUS_META = {
@@ -27,18 +34,48 @@ function destroyChart(key){
 }
 
 function baseChartOptions(extra){
+  const textColor = getTextColor();
+  const gridColor = getGridColor();
   return Object.assign({
     responsive:true, maintainAspectRatio:false,
-    plugins:{ legend:{ labels:{ color:CHART_COLORS.text2, font:{ size:11 } } }, tooltip:{ titleFont:{size:12}, bodyFont:{size:12} } },
+    plugins:{ legend:{ labels:{ color:textColor, font:{ size:11 } } }, tooltip:{ titleFont:{size:12}, bodyFont:{size:12} } },
     scales:{
-      x:{ ticks:{ color:CHART_COLORS.text2, font:{ size:10 } }, grid:{ color:CHART_COLORS.grid } },
-      y:{ ticks:{ color:CHART_COLORS.text2, font:{ size:10 } }, grid:{ color:CHART_COLORS.grid }, beginAtZero:true }
+      x:{ ticks:{ color:textColor, font:{ size:10 } }, grid:{ color:gridColor } },
+      y:{ ticks:{ color:textColor, font:{ size:10 } }, grid:{ color:gridColor }, beginAtZero:true }
     }
   }, extra||{});
 }
 
 function renderCharts(){
-  if(typeof Chart==='undefined')return; // CDN belum kelar load, skip diam-diam
+  if(typeof Chart==='undefined') return; // Chart.js CDN belum kelar load
+  if(!allData || !allData.length) return;
+
+  // Guard: kalau canvas belum punya width (container masih display:none),
+  // pasang ResizeObserver untuk trigger render otomatis saat container jadi visible.
+  const probe = document.getElementById('chartStatusDist');
+  if(!probe) return;
+  if(probe.offsetWidth === 0){
+    if(_chartRetryTimer) clearTimeout(_chartRetryTimer);
+    // Coba lagi dengan ResizeObserver (lebih reliable dari setTimeout)
+    if(window.ResizeObserver && !probe._chartObserver){
+      probe._chartObserver = new ResizeObserver(entries => {
+        for(const e of entries){
+          if(e.contentRect.width > 0){
+            probe._chartObserver.disconnect();
+            probe._chartObserver = null;
+            requestAnimationFrame(() => renderCharts());
+            break;
+          }
+        }
+      });
+      probe._chartObserver.observe(probe);
+    } else {
+      // Fallback: retry terus tiap 100ms sampai container visible
+      _chartRetryTimer = setTimeout(() => renderCharts(), 100);
+    }
+    return;
+  }
+
   renderStatusDistChart();
   renderFunnelChart();
   renderRoiDistChart();

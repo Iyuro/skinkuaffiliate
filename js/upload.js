@@ -68,7 +68,11 @@ function showSyncError(msg){
 }
 
 function renderAll(){
-  renderFileChips();renderUploadKPI();renderKPIGrid();renderDashboard();renderKreatorTable();updateDataInfo();setTimeout(()=>renderCharts(),80);updateAlertBadge();renderRankView();
+  renderFileChips();renderUploadKPI();renderKPIGrid();renderDashboard();renderKreatorTable();updateDataInfo();
+  // requestAnimationFrame(x2) memastikan browser selesai layout sebelum Chart.js kalkulasi dimensi canvas.
+  // Tanpa ini chart bisa render saat container belum visible (offsetWidth=0) dan hasilnya kosong.
+  requestAnimationFrame(()=>requestAnimationFrame(()=>renderCharts()));
+  updateAlertBadge();renderRankView();
   document.getElementById('kreatorBadge').style.display=allData.length?'inline':'none';
   document.getElementById('kreatorBadge').textContent=allData.length;
 }

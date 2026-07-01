@@ -7,7 +7,14 @@ function switchView(view){
   const titles={upload:'Upload Data',dashboard:'Dashboard',kreator:'Kreator List',exclusive:'Affiliate Exclusive',rank:'🏆 Rank Kreator',ai:'AI Analyst',settings:'Settings'};
   document.getElementById('topbarTitle').textContent=titles[view]||view;
   if(view==='kreator'&&allData.length)renderKreatorTable();
-  if(view==='dashboard'&&allData.length){renderKPIGrid();renderDashboard();setTimeout(()=>renderCharts(),80);}
+  if(view==='dashboard'&&allData.length){
+    renderKPIGrid();
+    renderDashboard();
+    // requestAnimationFrame memastikan browser sudah selesai layout view-dashboard
+    // sebelum Chart.js mencoba kalkulasi dimensi canvas. Tanpa ini chart bisa render
+    // saat container masih display:none (width=0) dan hasilnya kosong.
+    requestAnimationFrame(()=>requestAnimationFrame(()=>renderCharts()));
+  }
   if(view==='rank'&&allData.length)renderRankView();
 }
 function updateDataInfo(){document.getElementById('dataInfo').textContent=allData.length?`${allData.length} kreator loaded`:'Belum ada data';}
