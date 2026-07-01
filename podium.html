@@ -189,9 +189,37 @@ body{
 .reveal-msg.err{color:#e0526b}
 .reveal-msg.ok{color:#3aa876}
 
-.reveal-success .reveal-icon{animation:bounce .6s ease infinite}
-.reveal-username-big{font-size:19px;font-weight:900;color:var(--pink2);margin:8px 0 4px;word-break:break-all}
-.reveal-congrats{font-size:13px;color:var(--text);line-height:1.6;margin-bottom:6px}
+.reveal-success{max-width:380px;padding:0;overflow:hidden;background:linear-gradient(160deg,#fffdf7 0%,#fff6ea 100%)}
+.cert-frame{
+  margin:10px;border:2px solid var(--gold2);border-radius:16px;padding:26px 20px 22px;
+  position:relative;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255,209,102,0.18), transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(255,158,181,0.18), transparent 55%);
+}
+.cert-frame::before,.cert-frame::after{
+  content:'';position:absolute;width:22px;height:22px;border:2px solid var(--gold2);
+}
+.cert-frame::before{top:-2px;left:-2px;border-right:none;border-bottom:none;border-radius:16px 0 0 0}
+.cert-frame::after{bottom:-2px;right:-2px;border-left:none;border-top:none;border-radius:0 0 16px 0}
+.cert-seal{font-size:40px;animation:bounce .6s ease infinite;filter:drop-shadow(0 3px 6px rgba(244,167,46,0.35))}
+.cert-eyebrow{
+  font-size:11px;letter-spacing:.16em;font-weight:800;color:var(--gold2);
+  text-transform:uppercase;margin:6px 0 10px;
+}
+.cert-divider{width:56px;height:2px;margin:0 auto 12px;background:linear-gradient(90deg,transparent,var(--gold2),transparent)}
+.cert-given-to{font-size:11.5px;color:var(--text2);margin-bottom:4px}
+.reveal-username-big{font-size:20px;font-weight:900;color:var(--pink2);margin:2px 0 12px;word-break:break-all;font-family:Georgia,'Times New Roman',serif}
+.cert-body{font-size:12.5px;color:var(--text);line-height:1.7;margin-bottom:14px}
+.cert-body b{color:var(--pink2)}
+.cert-stats{
+  display:flex;justify-content:center;gap:18px;font-size:12px;color:var(--text2);
+  padding:10px 0;border-top:1px dashed rgba(244,167,46,0.4);border-bottom:1px dashed rgba(244,167,46,0.4);
+  margin-bottom:14px;
+}
+.cert-stats b{color:var(--text);font-size:13px}
+.cert-footer{display:flex;align-items:center;justify-content:space-between;font-size:10.5px;color:var(--text2)}
+.cert-sign{font-weight:800;color:var(--gold2)}
 
 .confetti-piece{
   position:fixed;top:-10px;border-radius:2px;pointer-events:none;z-index:1001;
@@ -411,12 +439,25 @@ function renderLeaderboard(type, data){
     : '<div class="lb-empty">Semua kreator udah tampil di podium ya 🏆</div>';
 }
 
+function rowMatchesQuery(row, type, q){
+  // Kalau baris ini udah pernah dibuka (verified), cocokkan langsung ke nama aslinya.
+  const revealed = revealedMap[type + '-' + row.rank];
+  if(revealed && revealed.toLowerCase().includes(q)) return true;
+  // Username dari server itu disensor (cth: "nat*******"), jadi kalau user ngetik
+  // username LENGKAPNYA (misal "nata_tata9"), .includes() biasa nggak bakal ketemu.
+  // Di sini kita cocokkan ke bagian yang kelihatan aja (sebelum tanda bintang),
+  // dua arah: query bisa lebih panjang (nebak lengkap) atau lebih pendek (baru ngetik sebagian).
+  const visible = row.username.replace(/\*/g,'').toLowerCase();
+  if(!visible) return false;
+  return q.startsWith(visible) || visible.startsWith(q);
+}
+
 function filterList(type){
   const q = document.getElementById('search'+cap(type)).value.toLowerCase().trim();
   const source = type==='gmv' ? allGmvData : allVideoData;
   // Pas nggak lagi nyari, tetep sembunyiin rank 1-3 (udah ada di podium).
   const base = q ? source : source.filter(r => r.rank > PODIUM_RANKS_SHOWN);
-  const filtered = q ? base.filter(r => r.username.toLowerCase().includes(q)) : base;
+  const filtered = q ? base.filter(r => rowMatchesQuery(r, type, q)) : base;
   const listEl = document.getElementById('lbList'+cap(type));
   const countEl = document.getElementById('lbCount'+cap(type));
   if(!filtered.length){
@@ -517,12 +558,30 @@ async function submitReveal(){
 function showRevealSuccess(data){
   const card = document.getElementById('revealCard');
   card.className = 'reveal-card reveal-success';
+  const today = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
   document.getElementById('revealBody').innerHTML = `
-    <div class="reveal-icon">🎉</div>
-    <div class="reveal-title">Selamat! Terverifikasi</div>
-    <div class="reveal-username-big">@${data.username}</div>
-    <div class="reveal-congrats">${data.message || 'Selamat, kamu berhasil buka namamu sendiri! 🎊'}</div>
-    <div class="reveal-sub" style="margin-bottom:0">${data.gmvFormatted ? `GMV: <b>${data.gmvFormatted}</b> &nbsp;•&nbsp; Video: <b>${data.video}</b>` : ''}</div>
+    <div class="cert-frame">
+      <div class="cert-seal">🏅</div>
+      <div class="cert-eyebrow">Sertifikat Apresiasi</div>
+      <div class="cert-divider"></div>
+      <div class="cert-given-to">Dengan bangga dipersembahkan untuk</div>
+      <div class="reveal-username-big">@${data.username}</div>
+      <div class="cert-body">
+        ${data.message || 'Selamat, identitasmu berhasil terverifikasi!'}<br><br>
+        Terima kasih sudah menjadi bagian dari keluarga besar <b>SKINKU Affiliate</b> 💖
+        Kerja keras dan konsistensi kamu bikin cerita bareng SKINKU makin seru.
+        Semoga makin cuan, makin banyak video, dan terus berkarya bareng kami ya! 🌸
+      </div>
+      ${data.gmvFormatted ? `
+      <div class="cert-stats">
+        <div>GMV<br><b>${data.gmvFormatted}</b></div>
+        <div>Video<br><b>${data.video}</b></div>
+      </div>` : ''}
+      <div class="cert-footer">
+        <div class="cert-sign">✨ SKINKU Affiliate Team</div>
+        <div class="cert-date">${today}</div>
+      </div>
+    </div>
   `;
   launchConfetti();
 }
