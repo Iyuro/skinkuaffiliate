@@ -11,6 +11,7 @@
 const { getSupabase, setCors } = require('./_supabase');
 const { mergeRows, fmtRp } = require('./_creator-logic');
 const { checkRateLimit, getClientIp } = require('./_rate-limit');
+const { extractPeriod } = require('./_period-utils');
 
 function normalize(name) {
   return String(name || '')
@@ -46,12 +47,25 @@ module.exports = async function handler(req, res) {
     const type = body.type === 'video' ? 'video' : 'gmv';
     const rank = parseInt(body.rank, 10);
     const guess = normalize(body.guess);
+    const period = body.period ? String(body.period).trim() : '';
+    const filterByPeriod = period && period !== 'all';
 
     if (!rank || rank < 1) return res.status(400).json({ success: false, message: 'Rank tidak valid.' });
     if (!guess) return res.status(400).json({ success: false, message: 'Username belum diisi.' });
 
     const supabase = getSupabase();
-    const { data: rawRows, error } = await supabase.from('creator_rows').select('*');
+
+    let fileIds = null;
+    if (filterByPeriod) {
+      const { data: files, error: fErr } = await supabase.from('uploaded_files').select('id, file_name');
+      if (fErr) return res.status(500).json({ success: false, message: 'Gagal ambil data periode.' });
+      fileIds = (files || []).filter(f => extractPeriod(f.file_name) === period).map(f => f.id);
+      if (!fileIds.length) return res.status(404).json({ success: false, message: 'Data untuk periode ini tidak ditemukan.' });
+    }
+
+    let rowsQuery = supabase.from('creator_rows').select('*');
+    if (fileIds) rowsQuery = rowsQuery.in('file_id', fileIds);
+    const { data: rawRows, error } = await rowsQuery;
     if (error) return res.status(500).json({ success: false, message: 'Gagal ambil data.' });
 
     const appRows = (rawRows || []).map(r => ({

@@ -6,6 +6,7 @@
 
 const { getSupabase, setCors } = require('./_supabase');
 const { mergeRows, fmtRp } = require('./_creator-logic');
+const { extractPeriod, formatPeriodLabel } = require('./_period-utils');
 
 // Sensor username: sisakan ±3 karakter pertama, sisanya jadi bintang.
 // Contoh: "skinkubeauty" -> "ski*********"
@@ -24,7 +25,29 @@ module.exports = async function handler(req, res) {
 
   try {
     const supabase = getSupabase();
-    const { data: rawRows, error } = await supabase.from('creator_rows').select('*');
+    const period = req.query && req.query.period ? String(req.query.period).trim() : '';
+    const filterByPeriod = period && period !== 'all';
+
+    // Kalau ada filter periode, cari dulu file_id mana aja yang nama filenya
+    // punya rentang tanggal (period) yang sama, baru ambil creator_rows dari file-file itu aja.
+    let fileIds = null;
+    if (filterByPeriod) {
+      const { data: files, error: fErr } = await supabase.from('uploaded_files').select('id, file_name');
+      if (fErr) return res.status(500).json({ error: fErr.message });
+      fileIds = (files || []).filter(f => extractPeriod(f.file_name) === period).map(f => f.id);
+      if (!fileIds.length) {
+        res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=60, stale-while-revalidate=120');
+        return res.status(200).json({
+          topGmv: [], topVideo: [], allGmv: [], allVideo: [],
+          totalCreators: 0, period, periodLabel: formatPeriodLabel(period),
+          updatedAt: new Date().toISOString()
+        });
+      }
+    }
+
+    let rowsQuery = supabase.from('creator_rows').select('*');
+    if (fileIds) rowsQuery = rowsQuery.in('file_id', fileIds);
+    const { data: rawRows, error } = await rowsQuery;
     if (error) return res.status(500).json({ error: error.message });
 
     const appRows = (rawRows || []).map(r => ({
@@ -50,6 +73,8 @@ module.exports = async function handler(req, res) {
       allGmv: allSorted_gmv,
       allVideo: allSorted_video,
       totalCreators: allData.length,
+      period: filterByPeriod ? period : 'all',
+      periodLabel: filterByPeriod ? formatPeriodLabel(period) : 'Semua Waktu',
       updatedAt: new Date().toISOString()
     });
   } catch (err) {
