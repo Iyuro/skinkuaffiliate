@@ -1,7 +1,12 @@
 // api/cron-daily-summary.js
-// Dipanggil otomatis oleh Vercel Cron tiap jam 9 pagi WIB (02:00 UTC) — lihat
-// schedule di vercel.json. Kirim ringkasan + alert (ghost kreator, kontrak expire)
-// ke GRUP Telegram (TELEGRAM_GROUP_CHAT_ID di env var).
+// Dipanggil otomatis oleh Vercel Cron, 2 jadwal berbeda yang keduanya nembak
+// endpoint yang SAMA (lihat vercel.json) — sengaja digabung 1 file (bukan file
+// terpisah) supaya nggak nambah kuota Serverless Function di Vercel Hobby plan:
+//   1. Tiap jam 9 pagi WIB (02:00 UTC), semua hari → ?type=summary (default)
+//      Kirim ringkasan + alert (ghost kreator, kontrak expire) ke grup Telegram.
+//   2. Tiap jam 6 sore WIB (11:00 UTC), Senin-Sabtu → ?type=reminder
+//      Reminder upload Sample Analysis & Transaction Analysis kalau hari itu
+//      belum ada yang keupload.
 //
 // Vercel Cron memanggil endpoint ini dengan header Authorization: Bearer <CRON_SECRET>
 // (otomatis ditambahkan Vercel kalau env var CRON_SECRET diset) — ini mencegah orang
@@ -78,6 +83,48 @@ async function buildDailyText() {
   return { text, ghostCount: ghosts.length };
 }
 
+// "Hari ini" dihitung pakai WIB (UTC+7), bukan UTC — soalnya cron-nya jalan
+// jam 18:00 WIB yang berarti masih 11:00 UTC, kalau salah pakai UTC bisa keliru
+// mikir "hari ini" itu masih hari kemarin pas dicek ke database.
+function todayRangeWib() {
+  const nowWib = new Date(Date.now() + 7 * 60 * 60 * 1000);
+  const dateStr = nowWib.toISOString().slice(0, 10); // YYYY-MM-DD dalam WIB
+  return `${dateStr}T00:00:00+07:00`;
+}
+
+async function buildUploadReminderText() {
+  const supabase = getSupabase();
+  const startOfDayWib = todayRangeWib();
+
+  const { data: files, error } = await supabase
+    .from('uploaded_files')
+    .select('file_type, uploaded_at')
+    .gte('uploaded_at', startOfDayWib);
+  if (error) throw new Error(error.message);
+
+  const hasSample = (files || []).some(f => f.file_type === 'sample');
+  const hasTransaction = (files || []).some(f => f.file_type === 'transaction');
+
+  if (hasSample && hasTransaction) {
+    return {
+      text: `✅ *Data Hari Ini Udah Lengkap*\n\nSample Analysis & Transaction Analysis udah keupload hari ini. Mantap, makasih udah rajin update! 🙌`,
+      showButton: false
+    };
+  }
+
+  const missing = [];
+  if (!hasSample) missing.push('📤 *Sample Analysis Creator List*');
+  if (!hasTransaction) missing.push('📤 *Transaction Analysis Creator List*');
+
+  const text =
+    `⏰ *Reminder Upload Data Hari Ini*\n\n` +
+    `Udah jam 6 sore nih! Yang masih belum keupload hari ini:\n\n` +
+    `${missing.join('\n')}\n\n` +
+    `Yuk sempetin upload dulu ke dashboard biar ranking & podium selalu update ya 🙏`;
+
+  return { text, showButton: true };
+}
+
 module.exports = async function handler(req, res) {
   // Keamanan: Vercel Cron otomatis kirim header ini kalau CRON_SECRET diset di env var.
   // Kalau request datang tanpa secret yang cocok, tolak (mencegah orang luar trigger broadcast).
@@ -93,6 +140,18 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    const type = req.query && req.query.type === 'reminder' ? 'reminder' : 'summary';
+
+    if (type === 'reminder') {
+      const { text, showButton } = await buildUploadReminderText();
+      // Derive domain dashboard dari header request, biar link-nya otomatis
+      // ikut domain Vercel yang lagi aktif tanpa perlu di-hardcode manual.
+      const host = req.headers['x-forwarded-host'] || req.headers.host;
+      const keyboard = (showButton && host) ? [[{ text: '📂 Buka Dashboard', url: `https://${host}` }]] : undefined;
+      await sendMessage(GROUP_CHAT_ID, text, keyboard);
+      return res.status(200).json({ success: true, type: 'reminder' });
+    }
+
     const result = await buildDailyText();
     if (!result) return res.status(200).json({ skipped: true, reason: 'Belum ada data' });
 
@@ -102,7 +161,7 @@ module.exports = async function handler(req, res) {
 
     await sendMessage(GROUP_CHAT_ID, result.text, keyboard);
 
-    return res.status(200).json({ success: true, sentTo: 1 });
+    return res.status(200).json({ success: true, type: 'summary', sentTo: 1 });
   } catch (err) {
     console.error('Cron daily summary error:', err);
     return res.status(500).json({ error: err.message });
