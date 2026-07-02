@@ -129,20 +129,34 @@
 
       <!-- UPLOAD -->
       <div class="view active" id="view-upload">
-        <div class="upload-zone" id="dropzone">
-          <input type="file" id="fileInput" accept=".xlsx,.xls" multiple>
-          <span class="upload-icon">📂</span>
-          <div style="font-size:15px;font-weight:600;margin-bottom:6px">Drop file Excel di sini</div>
-          <div style="font-size:13px;color:var(--text3)">Sample Analysis atau Transaction Analysis — bisa multi-file sekaligus</div>
-          <div style="font-size:12px;color:var(--text3);margin-top:4px">.xlsx / .xls dari TikTok Seller Affiliate</div>
+
+        <div class="settings-section">
+          <h3>📂 Upload File Baru</h3>
+          <div class="upload-zone" id="dropzone">
+            <input type="file" id="fileInput" accept=".xlsx,.xls" multiple>
+            <span class="upload-icon">📂</span>
+            <div style="font-size:15px;font-weight:600;margin-bottom:6px">Drop file Excel di sini</div>
+            <div style="font-size:13px;color:var(--text3)">Sample Analysis atau Transaction Analysis — bisa multi-file sekaligus</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:4px">.xlsx / .xls dari TikTok Seller Affiliate</div>
+          </div>
+          <div id="uploadStatus" class="upload-status-bar" style="display:none"></div>
         </div>
-        <div id="uploadStatus" class="upload-status-bar" style="display:none"></div>
-        <div id="fileChips" class="file-chips"></div>
-        <div id="uploadSummary" style="display:none">
-          <div class="kpi-grid" id="uploadKPI"></div>
-          <div style="text-align:center;margin-top:8px"><button class="btn btn-primary" onclick="switchView('dashboard')">Lihat Dashboard →</button></div>
-        </div>
+
         <div id="uploadEmpty" class="empty-state"><span class="icon">📋</span><p>Belum ada file yang diupload</p></div>
+
+        <div id="uploadSummary" style="display:none">
+          <div class="settings-section">
+            <h3>📊 Ringkasan Data</h3>
+            <div class="kpi-grid" id="uploadKPI"></div>
+            <div style="text-align:center;margin-top:8px"><button class="btn btn-primary" onclick="switchView('dashboard')">Lihat Dashboard →</button></div>
+          </div>
+        </div>
+
+        <div class="settings-section" id="fileMgrSection" style="display:none">
+          <h3>🗂️ File Ter-upload</h3>
+          <div id="fileChips" class="file-chips"></div>
+        </div>
+
       </div>
 
       <!-- DASHBOARD -->
@@ -332,6 +346,33 @@
             <p><b style="color:var(--text)">ROI 45h</b> = GMV ÷ Nilai Sampel (dihitung TikTok). Bagus ≥ 3x</p>
           </div>
         </div>
+        <div class="settings-section">
+          <h3>🕵️ Activity Log</h3>
+          <div style="font-size:12px;color:var(--text3);margin:-8px 0 12px">
+            Histori aktivitas di sistem ini — identitas "siapa"-nya otomatis dibaca dari IP + jenis device/browser
+            (belum ada akun per-orang, semua yang login lewat 1 kode OTP bareng).
+          </div>
+          <div class="activity-toolbar">
+            <select id="activityFilter" class="activity-filter-select" onchange="loadActivityLog()">
+              <option value="">Semua aktivitas</option>
+              <option value="upload_file">📤 Upload file</option>
+              <option value="delete_file">🗑️ Hapus file</option>
+              <option value="add_exclusive">⭐ Tambah Exclusive</option>
+              <option value="update_exclusive">✏️ Update Exclusive</option>
+              <option value="delete_exclusive">🗑️ Hapus Exclusive</option>
+              <option value="login_success">🔓 Login berhasil</option>
+              <option value="login_failed">⛔ Login gagal</option>
+              <option value="otp_requested">📨 Minta OTP</option>
+              <option value="logout">🚪 Logout</option>
+              <option value="page_view">👁️ Buka halaman</option>
+              <option value="resync_data">🔄 Sync ulang</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="loadActivityLog()">🔄 Refresh</button>
+          </div>
+          <div id="activityLogList" class="activity-log-list">
+            <div class="activity-empty">⏳ Memuat log...</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -350,6 +391,7 @@
 <script src="js/charts.js"></script>
 <script src="js/ai-chat.js"></script>
 <script src="js/settings.js"></script>
+<script src="js/activity-log.js"></script>
 <script src="js/rank.js"></script>
 <script src="js/nav.js"></script>
 <script src="js/app.js"></script>

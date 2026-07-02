@@ -105,8 +105,9 @@ function showSyncStatus(loading){
   if(loading)el.textContent='⏳ Memuat data tersimpan...';
 }
 
-function logout(){
+async function logout(){
   if(!confirm('Yakin mau logout?'))return;
+  await apiLogActivity('logout', null);
   localStorage.removeItem('aa_auth');
   location.reload();
 }

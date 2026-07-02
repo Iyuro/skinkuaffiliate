@@ -16,6 +16,8 @@ function switchView(view){
     requestAnimationFrame(()=>requestAnimationFrame(()=>renderCharts()));
   }
   if(view==='rank'&&allData.length)renderRankView();
+  if(view==='settings'&&typeof loadActivityLog==='function')loadActivityLog();
+  apiLogActivity('page_view', titles[view]||view);
 }
 function updateDataInfo(){document.getElementById('dataInfo').textContent=allData.length?`${allData.length} kreator loaded`:'Belum ada data';}
 // "Reset" di topbar sekarang artinya sync ulang dari server (bukan hapus data),
@@ -23,6 +25,7 @@ function updateDataInfo(){document.getElementById('dataInfo').textContent=allDat
 // di masing-masing file pada daftar "File ter-upload" (lihat js/dashboard.js renderFileChips).
 async function clearData(){
   if(!confirm('Sync ulang data dari server? (Data yang sudah tersimpan TIDAK akan terhapus)'))return;
+  apiLogActivity('resync_data', null);
   await loadAllDataFromServer();
   switchView('upload');
 }

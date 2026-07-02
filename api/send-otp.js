@@ -4,6 +4,7 @@
 
 const crypto = require('crypto');
 const { checkRateLimit, getClientIp } = require('./_rate-limit');
+const { logActivity } = require('./_activity-log');
 
 function signToken(otp, secret) {
   const expires = Date.now() + 5 * 60 * 1000;
@@ -52,6 +53,7 @@ module.exports = async function handler(req, res) {
     });
     const tgData = await tgRes.json();
     if (!tgData.ok) throw new Error(tgData.description || 'Telegram error');
+    await logActivity(req, 'otp_requested', null);
     // Kirim signed token ke client — OTP ter-enkripsi di dalamnya
     return res.status(200).json({ success: true, token });
   } catch (err) {

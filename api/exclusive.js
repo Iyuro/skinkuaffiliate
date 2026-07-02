@@ -4,6 +4,7 @@
 // DELETE: hapus 1 via ?id=...
 
 const { getSupabase, setCors, requireAuth } = require('./_supabase');
+const { logActivity } = require('./_activity-log');
 
 module.exports = async function handler(req, res) {
   setCors(res);
@@ -56,6 +57,7 @@ module.exports = async function handler(req, res) {
         .select()
         .single();
       if (error) return res.status(500).json({ error: error.message });
+      await logActivity(req, 'update_exclusive', `@${payload.username}`);
       return res.status(200).json({ success: true, item: data });
     } else {
       const { data, error } = await supabase
@@ -64,6 +66,7 @@ module.exports = async function handler(req, res) {
         .select()
         .single();
       if (error) return res.status(500).json({ error: error.message });
+      await logActivity(req, 'add_exclusive', `@${payload.username}`);
       return res.status(200).json({ success: true, item: data });
     }
   }
@@ -71,8 +74,10 @@ module.exports = async function handler(req, res) {
   if (req.method === 'DELETE') {
     const id = req.query?.id || (req.body && req.body.id);
     if (!id) return res.status(400).json({ error: 'Parameter id wajib diisi' });
+    const { data: existing } = await supabase.from('exclusive_creators').select('username').eq('id', id).single();
     const { error } = await supabase.from('exclusive_creators').delete().eq('id', id);
     if (error) return res.status(500).json({ error: error.message });
+    await logActivity(req, 'delete_exclusive', existing?.username ? `@${existing.username}` : `id=${id}`);
     return res.status(200).json({ success: true });
   }
 

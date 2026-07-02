@@ -53,6 +53,29 @@ async function apiDeleteExclusive(id) {
   return res.json();
 }
 
+// ---------- ACTIVITY LOG ----------
+// Cuma dipakai buat aksi yang MURNI kejadian di browser (nggak lewat endpoint
+// server lain): pindah halaman, logout, klik "Reset". Sengaja "fire-and-forget"
+// (nggak dikasih await sama pemanggilnya) biar nggak bikin UI kerasa lag,
+// dan silent kalau gagal — logging nggak boleh ganggu pengalaman pakai app.
+async function apiLogActivity(action, detail) {
+  try {
+    await fetch('/api/log-activity', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ action, detail })
+    });
+  } catch (e) { /* silent */ }
+}
+
+async function apiGetActivityLog(action, limit) {
+  const params = new URLSearchParams();
+  if (action) params.set('action', action);
+  if (limit) params.set('limit', limit);
+  const res = await fetch('/api/activity-log?' + params.toString(), { headers: authHeaders() });
+  if (!res.ok) throw new Error((await res.json()).error || 'Gagal ambil activity log');
+  return res.json(); // { logs }
+}
+
 // ---------- KONVERSI row Supabase (snake_case) ↔ row internal app (camelCase) ----------
 // Supabase nyimpen kolom dengan nama snake_case (sampel_diminta, dst), sedangkan
 // seluruh logic existing app ini (getStatus, getSaran, dashboard, dll) pakai camelCase.

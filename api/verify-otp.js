@@ -4,6 +4,7 @@
 
 const crypto = require('crypto');
 const { checkRateLimit, getClientIp } = require('./_rate-limit');
+const { logActivity } = require('./_activity-log');
 
 function verifyToken(token, otp, secret) {
   try {
@@ -54,8 +55,12 @@ module.exports = async function handler(req, res) {
   if (!token || !otp) return res.status(400).json({ error: 'token dan otp wajib diisi' });
 
   const result = verifyToken(token, otp, SECRET);
-  if (!result.ok) return res.status(401).json({ error: result.reason });
+  if (!result.ok) {
+    await logActivity(req, 'login_failed', result.reason);
+    return res.status(401).json({ error: result.reason });
+  }
 
   const authToken = Buffer.from(JSON.stringify({ auth: true, ts: Date.now() })).toString('base64');
+  await logActivity(req, 'login_success', null);
   return res.status(200).json({ success: true, token: authToken });
 };

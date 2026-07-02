@@ -5,6 +5,8 @@ function renderFileChips(){
   const container = document.getElementById('fileChips');
   document.getElementById('uploadEmpty').style.display = loadedFiles.length ? 'none' : 'block';
   document.getElementById('uploadSummary').style.display = loadedFiles.length ? 'block' : 'none';
+  const mgrSection = document.getElementById('fileMgrSection');
+  if(mgrSection) mgrSection.style.display = loadedFiles.length ? 'block' : 'none';
 
   if(!loadedFiles.length){ container.innerHTML=''; return; }
 

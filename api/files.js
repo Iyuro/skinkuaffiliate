@@ -3,6 +3,7 @@
 // DELETE (hapus 1 file spesifik beserta semua creator_rows terkait, via ?id=...)
 
 const { getSupabase, setCors, requireAuth } = require('./_supabase');
+const { logActivity } = require('./_activity-log');
 
 module.exports = async function handler(req, res) {
   setCors(res);
@@ -72,6 +73,7 @@ module.exports = async function handler(req, res) {
       if (rErr) return res.status(500).json({ error: rErr.message });
     }
 
+    await logActivity(req, 'upload_file', `${fileRow.file_name} (${fileType || 'unknown'}, ${rows.length} baris)`);
     return res.status(200).json({ success: true, file: fileRow });
   }
 
@@ -80,9 +82,13 @@ module.exports = async function handler(req, res) {
     const fileId = req.query?.id || (req.body && req.body.id);
     if (!fileId) return res.status(400).json({ error: 'Parameter id wajib diisi' });
 
+    // Ambil nama filenya dulu sebelum dihapus, biar log-nya informatif (bukan cuma UUID).
+    const { data: existing } = await supabase.from('uploaded_files').select('file_name').eq('id', fileId).single();
+
     const { error } = await supabase.from('uploaded_files').delete().eq('id', fileId);
     if (error) return res.status(500).json({ error: error.message });
 
+    await logActivity(req, 'delete_file', existing?.file_name || `file_id=${fileId}`);
     return res.status(200).json({ success: true });
   }
 
