@@ -9,7 +9,7 @@ async function requestOTP(){
   btn.innerHTML='<span class="spinner"></span>Mengirim...';
   document.getElementById('step1Err').textContent='';
   try{
-    const res=await fetch('/api/send-otp',{method:'POST',headers:{'Content-Type':'application/json'}});
+    const res=await fetch('/api/otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'send'})});
     const data=await res.json();
     if(!res.ok) throw new Error(data.error||'Gagal kirim OTP');
     otpToken=data.token;
@@ -73,9 +73,9 @@ async function verifyOTP(){
   btn.innerHTML='<span class="spinner"></span>Memverifikasi...';
   document.getElementById('step2Err').textContent='';
   try{
-    const res=await fetch('/api/verify-otp',{
+    const res=await fetch('/api/otp',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({token:otpToken,otp})
+      body:JSON.stringify({action:'verify',token:otpToken,otp})
     });
     const data=await res.json();
     if(!res.ok) throw new Error(data.error||'Verifikasi gagal');
