@@ -15,11 +15,16 @@ const GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
 const CRON_SECRET = process.env.CRON_SECRET;
 const TG_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
-function sendMessage(chatId, text) {
+function sendMessage(chatId, text, keyboard) {
   return fetch(`${TG_API}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' })
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      parse_mode: 'Markdown',
+      reply_markup: keyboard ? { inline_keyboard: keyboard } : undefined
+    })
   }).then(r => r.json());
 }
 
@@ -70,7 +75,7 @@ async function buildDailyText() {
     if (expiring.length) text += `\n🟡 ${expiring.length} mau expire ≤7 hari`;
   }
 
-  return text;
+  return { text, ghostCount: ghosts.length };
 }
 
 module.exports = async function handler(req, res) {
@@ -88,10 +93,14 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const text = await buildDailyText();
-    if (!text) return res.status(200).json({ skipped: true, reason: 'Belum ada data' });
+    const result = await buildDailyText();
+    if (!result) return res.status(200).json({ skipped: true, reason: 'Belum ada data' });
 
-    await sendMessage(GROUP_CHAT_ID, text);
+    const keyboard = result.ghostCount
+      ? [[{ text: '📲 Follow Up ke Grup WA', callback_data: 'followup_wa' }]]
+      : undefined;
+
+    await sendMessage(GROUP_CHAT_ID, result.text, keyboard);
 
     return res.status(200).json({ success: true, sentTo: 1 });
   } catch (err) {

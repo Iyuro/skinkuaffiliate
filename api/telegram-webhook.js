@@ -223,7 +223,11 @@ async function buildGhost() {
   const lines = ghosts.slice(0, 15).map((r, i) =>
     `${i + 1}\\. [@${r.name}](https://www.tiktok.com/@${r.name}) — ${r.sampelTerkirim} sampel, 0 video`);
   const more = ghosts.length > 15 ? `\n\n_\\+${ghosts.length - 15} lainnya_` : '';
-  return { text: `👻 *Ghost Kreator* \\(${ghosts.length}\\)\n\n${lines.join('\n')}${more}`, keyboard: backKeyboard() };
+  const keyboard = [
+    [{ text: '📲 Follow Up ke Grup WA', callback_data: 'followup_wa' }],
+    ...backKeyboard(),
+  ];
+  return { text: `👻 *Ghost Kreator* \\(${ghosts.length}\\)\n\n${lines.join('\n')}${more}`, keyboard };
 }
 
 async function buildRekomen() {
@@ -271,6 +275,67 @@ function buildClearConfirm() {
       `⚠️ _Tindakan ini tidak bisa dibatalkan\\._`,
     keyboard: confirmKeyboard(),
   };
+}
+
+function escCode(str) {
+  // Cuma escape backslash & backtick (yang bisa merusak blok kode ```...```),
+  // sengaja TIDAK escape karakter markdown lain (* _ dst) karena teks ini
+  // memang didesain buat di-copy-paste APA ADANYA ke WhatsApp — tanda bintang
+  // *tunggal* di WA juga berarti bold, jadi format itu justru ikut kebawa.
+  return String(str || '').replace(/\\/g, '\\\\').replace(/`/g, '\\`');
+}
+
+function buildWaFollowUpText(chunk, startIndex, partLabel) {
+  const list = chunk.map((r, i) => `${startIndex + i + 1}. @${r.name} (${r.sampelTerkirim} sampel, 0 video)`).join('\n');
+  return `Halo kak! 👋
+
+Tim *SKINKU Affiliate* mau follow up beberapa kreator yang sampel-nya sudah dikirim, tapi sampai saat ini belum ada video yang ter-posting${partLabel}:
+
+${list}
+
+Kalau ada kendala dalam proses bikin konten, boleh banget diinfokan ke kami ya, biar bisa kita bantu carikan solusinya 🙏
+Ditunggu kabar & update video-nya dalam waktu dekat ya kak, terima kasih banyak! 🌸
+
+— Tim SKINKU Affiliate`;
+}
+
+// ─── Follow Up WA handler ─────────────────────────────────────────────────────
+// Semi-otomatis: bot menyiapkan teks pesan siap-paste (bukan kirim WA langsung),
+// karena hosting saat ini (Vercel serverless) tidak bisa menjaga sesi WhatsApp
+// tetap nyala 24 jam. Teksnya dibungkus blok kode ``` ``` supaya tinggal
+// sekali tap buat copy semuanya di Telegram, lalu tinggal paste manual ke
+// grup WhatsApp afiliate.
+async function handleFollowUpWa(chatId, msgId) {
+  const { all } = await loadData();
+  const ghosts = all.filter(isGhost);
+
+  if (!ghosts.length) {
+    await editMessage(chatId, msgId,
+      '📲 *Follow Up ke Grup WA*\n\n✅ _Tidak ada ghost kreator yang perlu di\\-follow up saat ini\\!_',
+      backKeyboard());
+    return;
+  }
+
+  const CHUNK_SIZE = 60; // jaga-jaga biar tiap pesan tetap di bawah limit 4096 karakter Telegram
+  const chunks = [];
+  for (let i = 0; i < ghosts.length; i += CHUNK_SIZE) chunks.push(ghosts.slice(i, i + CHUNK_SIZE));
+
+  const splitNote = chunks.length > 1
+    ? ` \\(dikirim jadi ${chunks.length} bagian karena listnya panjang — paste semua bagiannya ya\\)`
+    : '';
+  const intro = `📲 *Follow Up ke Grup WA* \\(${ghosts.length} kreator\\)\n\n` +
+    `Tap teksnya buat copy, terus paste ke grup WA afiliate kamu${splitNote}:`;
+
+  await editMessage(chatId, msgId, intro, backKeyboard());
+
+  for (let idx = 0; idx < chunks.length; idx++) {
+    const startIndex = idx * CHUNK_SIZE;
+    const partLabel = chunks.length > 1 ? ` (bagian ${idx + 1}/${chunks.length})` : '';
+    const waText = buildWaFollowUpText(chunks[idx], startIndex, partLabel);
+    const block = '```\n' + escCode(waText) + '\n```';
+    // Cuma bagian terakhir yang dikasih tombol nav, biar chat-nya nggak penuh tombol berulang.
+    await sendMessage(chatId, block, idx === chunks.length - 1 ? backKeyboard() : undefined);
+  }
 }
 
 // ─── Route map ────────────────────────────────────────────────────────────────
@@ -426,6 +491,16 @@ module.exports = async function handler(req, res) {
         await editMessage(cq.message.chat.id, cq.message.message_id,
           '🧹 Menghapus semua pesan yang ter\\-track\\.\\.\\.', []);
         await handleClearExecute(cq.message.chat.id);
+        return res.status(200).json({ ok: true });
+      }
+
+      if (action === 'followup_wa') {
+        try {
+          await handleFollowUpWa(cq.message.chat.id, cq.message.message_id);
+        } catch (err) {
+          await editMessage(cq.message.chat.id, cq.message.message_id,
+            `⚠️ Gagal: ${escMd(err.message)}`, backKeyboard());
+        }
         return res.status(200).json({ ok: true });
       }
 
